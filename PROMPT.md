@@ -23,9 +23,13 @@ Flujo para cada cambio que te pida:
 2. Regenera y **lee la salida de los scripts**: las entradas tienen que sumar 57
    en 26/27 y 53 en 25/26, y `hist2526.py` debe decir
    `¿coincide con el resumen del Excel? SÍ`.
-3. Si el cambio descuadra una cuota, no lo escondas: dilo en la respuesta y
-   déjalo explicado en las reglas de la página (`rules_html()` en `build.py`),
-   igual que está hecho con el Villarreal.
+3. Si el cambio descuadra una cuota, no lo escondas: dilo en la respuesta y déjalo
+   escrito en el comentario de `POST`, igual que está hecho con el Villarreal. La
+   página ya no publica las reglas del sorteo, es material interno.
+   Antes de cambiar `PAIR_T` lee su comentario: los seis números están atados por
+   cuatro ecuaciones y tocarlos reoptimiza el calendario entero. Para mover parejas
+   sin descolocar nada, usa un intercambio en `POST` (dos partidos del mismo bloque
+   y nivel), como el de Osasuna/Levante.
 4. Abre `index.html` y comprueba de verdad que se ve bien: las dos pestañas
    (2026/27 por defecto, 2025/26 en la segunda), los filtros por competición y
    por persona en cada temporada, y que no hay errores en la consola.

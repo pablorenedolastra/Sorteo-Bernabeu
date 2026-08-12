@@ -42,14 +42,32 @@ Los dos bloques no se mezclan: cambiar algo en Champions no debe descuadrar la L
 
 Restricciones adicionales, todas en la función `score()` de `sorteo.py`:
 
-- Alberto va preferentemente con Pablo o con Jorge (máximo 2 veces con Víctor).
+- Alberto va preferentemente con Pablo o con Jorge. El tope eran 2 veces con
+  Víctor; ahora son **3**, por el reequilibrio que se explica más abajo.
 - El Derbi y el Clásico son los dos únicos nivel 1 garantizados: 4 asientos, uno
   por cabeza.
-- Nadie tres partidos seguidos; sin sequías largas.
+- Nadie tres partidos seguidos; sin sequías largas. Ojo: son penalizaciones que el
+  optimizador minimiza, no prohibiciones. Pablo y Víctor van a 18 y 19 de los 29
+  partidos, así que encadenar tres es casi inevitable y de hecho pasa 9 veces.
 - Las parejas se acercan al reparto más variado posible (`PAIR_T`), que no es
   uniforme: como Pablo y Víctor van a 19 de 29 partidos, coinciden por fuerza un
   mínimo de 9 veces.
 - La semifinal de Copa no repite exactamente la pareja del Derbi ni la del Clásico.
+
+### Las parejas no son seis números libres
+
+Conviene saberlo antes de tocar `PAIR_T`. Cada uno tiene un número fijo de partidos
+con pareja (Pablo 19, Víctor 19, Alberto 10, y Jorge 8 porque el Málaga va solo), y
+eso son cuatro ecuaciones. Todo el sistema queda determinado por dos números,
+`j` = Pablo+Jorge y `a` = Pablo+Alberto:
+
+    Pablo+Víctor  = 19 - j - a          Víctor+Jorge   = a - 1
+    Alberto+Jorge =  9 - j - a          Alberto+Víctor = j + 1
+
+La última es la que duele: **cada partido que Pablo gana con Jorge obliga a uno más
+de Alberto con Víctor**, que es lo que Alberto pidió evitar. Equilibrar del todo a
+Pablo (`j = a`) exigiría Alberto+Víctor = 4, el doble del tope original. Por eso el
+reequilibrio se quedó en `j=2, a=5`, con Alberto+Víctor en 3.
 
 Casos particulares fijados a mano en `FIXED` (entran *antes* de optimizar, el
 sorteo se construye respetándolos):
@@ -63,16 +81,27 @@ sorteo se construye respetándolos):
 
 ### Cambiar quién va a un partido de 2026/27
 
-Añade una entrada a `POST` en `sorteo.py`, que se aplica *después* del sorteo:
+Añade una entrada a `POST` en `sorteo.py`, que se aplica *después* del sorteo y no
+re-optimiza nada, para no descolocar el resto del calendario. Hay dos tipos y no
+conviene confundirlos:
 
 ```python
-POST = {"L8": ["Víctor", "Jorge"]}   # Villarreal: entra Jorge en lugar de Pablo
+POST = {"L8":  ["Víctor", "Jorge"],     # sustitución: entra Jorge en lugar de Pablo
+        "L16": ["Pablo", "Jorge"],      # intercambio: Jorge entra por Alberto ...
+        "L19": ["Alberto", "Víctor"]}   #              ... y Alberto ocupa su sitio
 ```
 
-Es una sustitución directa: **descuadra la cuota a propósito** y no se re-optimiza
-nada, para no descolocar el resto del calendario. Si el cambio rompe un cupo de
-forma relevante, dilo en las reglas de la página (`rules_html()` en `build.py`)
-para que quien la lea entienda por qué no cuadra.
+- **Sustitución directa** — alguien entra en el sitio de otro. **Descuadra la cuota
+  a propósito.** Es el caso del Villarreal (`L8`).
+- **Intercambio** — dos personas se cambian el sitio entre dos partidos *del mismo
+  bloque y del mismo nivel*. Al ser del mismo nivel **no mueve ninguna cuota ni
+  ningún total**: solo cambia con quién va cada uno. Es el caso de Osasuna/Levante
+  (`L16` y `L19`). Si necesitas mover parejas sin romper el reparto, este es el
+  mecanismo: busca dos partidos compatibles y cruza a dos personas.
+
+Si el cambio rompe un cupo de forma relevante, dilo en la respuesta y déjalo escrito
+en el comentario de `POST`, que es donde queda el rastro. La página ya no publica las
+reglas del sorteo, así que ahí no hay nada que actualizar.
 
 Alternativa: si quieres que el sorteo *respete* la restricción y reequilibre lo
 demás, mete el partido en `FIXED` en vez de en `POST`. Ojo: eso vuelve a barajar

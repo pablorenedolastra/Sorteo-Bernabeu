@@ -91,6 +91,24 @@ QTOT = {"Pablo":19,"Víctor":19,"Jorge":9,"Alberto":10}
 # Objetivo de parejas: es el reparto más variado posible dado que (a) Pablo y Víctor
 # van a 19 de 29 partidos, así que coinciden por fuerza al menos 9 veces, (b) Alberto
 # solo puede ir 2 veces con Víctor y (c) Alberto y Jorge deben coincidir al menos 2.
+#
+# Estos seis números NO son libres. Cada uno tiene un número fijo de partidos con pareja
+# (Pablo 19, Víctor 19, Alberto 10, y Jorge 8 porque el Málaga va solo), y eso son cuatro
+# ecuaciones: todo queda determinado por j = Pablo+Jorge y a = Pablo+Alberto.
+#
+#     Pablo+Víctor  = 19 - j - a          Víctor+Jorge   = a - 1
+#     Alberto+Jorge =  9 - j - a          Alberto+Víctor = j + 1
+#
+# La última es la que aprieta: cada partido que Pablo gana con Jorge obliga a uno más de
+# Alberto con Víctor, que es justo lo que Alberto pidió evitar. No hay manera de esquivarlo.
+# Equilibrar del todo a Pablo (j = a) exigiría Alberto+Víctor = 4, el doble de su tope.
+#
+# Pablo pidió pasar de 6-y-1 a 5-y-2 (j=2, a=5, con Alberto+Víctor en 3). Eso NO se hace
+# aquí: tocar PAIR_T reoptimiza el sorteo entero y movía 20 de los 29 partidos, incluidos
+# el Derbi y el Clásico, a dos semanas de empezar la temporada. Se aplica abajo en POST
+# como un intercambio de dos partidos. Si algún año se rehace el sorteo desde cero, mejor
+# poner aquí directamente {..12, Jorge+Pablo 2, Alberto+Pablo 5, Jorge+Víctor 4,
+# Alberto+Víctor 3, Alberto+Jorge 2} y subir a 3 el tope de la penalización en score().
 PAIR_T = {("Pablo","Víctor"):12, ("Jorge","Pablo"):1, ("Alberto","Pablo"):6,
           ("Jorge","Víctor"):5, ("Alberto","Víctor"):2, ("Alberto","Jorge"):2}
 
@@ -138,9 +156,24 @@ for _ in range(9000):
 assign = best
 print("\nMejor score:", round(bs,2))
 
-# Cambios pedidos a mano DESPUÉS del sorteo. Son sustituciones directas: alteran la
-# cuota a propósito, así que no se re-optimiza nada para no descolocar el resto.
-POST = {"L8": ["Víctor", "Jorge"]}   # Villarreal: entra Jorge en lugar de Pablo
+# Cambios pedidos a mano DESPUÉS del sorteo. No se re-optimiza nada, para no descolocar el
+# resto del calendario. Hay dos tipos y conviene no confundirlos:
+#
+#   - Sustitución directa: alguien entra en el sitio de otro. Altera la cuota a propósito.
+#     Es el caso del Villarreal.
+#   - Intercambio: dos personas se cambian el sitio entre dos partidos del mismo bloque y
+#     del mismo nivel. Al ser del mismo nivel no mueve ninguna cuota ni ningún total, solo
+#     con quién va cada uno. Es el caso de Osasuna/Levante.
+#
+# El intercambio Osasuna/Levante es el reequilibrio que pidió Pablo entre Alberto y Jorge
+# (ver la nota de PAIR_T). Alberto y Jorge se cambian el sitio, y con ese único movimiento
+# se mueven los cuatro objetivos a la vez: Pablo+Alberto 6->5, Pablo+Jorge 1->2,
+# Jorge+Víctor 6->5 y Alberto+Víctor 2->3. De los seis intercambios posibles se eligió este
+# porque es el que mejor deja las reglas blandas: baja de 10 a 9 las rachas de tres
+# partidos seguidos y elimina la única sequía larga que quedaba.
+POST = {"L8":  ["Víctor", "Jorge"],     # Villarreal: entra Jorge en lugar de Pablo
+        "L16": ["Pablo", "Jorge"],      # Osasuna: Jorge entra por Alberto ...
+        "L19": ["Alberto", "Víctor"]}   # Levante: ... y Alberto ocupa el sitio de Jorge
 for mid, who in POST.items():
     if assign[mid] != who:
         print(f"  cambio manual {mid}: {' + '.join(assign[mid])} -> {' + '.join(who)}")
