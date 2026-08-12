@@ -9,13 +9,13 @@ H = [
  ("J3","Sáb 30 ago 2025","2025-08-30","RCD Mallorca",3,"21:30","",["Alberto","Jorge"],"LIGA"),
  ("Fase Liga","Mar 16 sep 2025","2025-09-16","Olympique de Marsella",2,"21:00","Debut Champions",["Pablo","Víctor"],"CHAMPIONS"),
  ("J5","20/21 sep 2025","2025-09-20","RCD Espanyol",3,"","",["Pablo","Jorge"],"LIGA"),
- ("J8","4/5 oct 2025","2025-10-04","Villarreal CF",2,"","Fue Jorge · DEUDA",["Víctor","Alberto"],"LIGA"),
+ ("J8","4/5 oct 2025","2025-10-04","Villarreal CF",2,"","Fue Jorge · DEUDA",["Víctor","Jorge"],"LIGA"),
  ("Fase Liga","Mié 22 oct 2025","2025-10-22","Juventus",1,"21:00","PARTIDAZO 🔥",["Jorge","Víctor"],"CHAMPIONS"),
  ("J10","25/26 oct 2025","2025-10-25","FC Barcelona",1,"","EL CLÁSICO 🔥",["Pablo","Alberto"],"LIGA"),
  ("J11","1/2 nov 2025","2025-11-01","Valencia CF",2,"","",["Pablo","Víctor"],"LIGA"),
  ("J15","6/7 dic 2025","2025-12-06","RC Celta de Vigo",3,"","",["Pablo","Alberto"],"LIGA"),
  ("Fase Liga","Mié 10 dic 2025","2025-12-10","Manchester City",1,"21:00","PARTIDAZO 🔥",["Pablo","Víctor"],"CHAMPIONS"),
- ("J17","20/21 dic 2025","2025-12-20","Sevilla FC",2,"","Va Alberto para saldar deuda con Jorge",["Jorge","Víctor"],"LIGA"),
+ ("J17","20/21 dic 2025","2025-12-20","Sevilla FC",2,"","Va Alberto para saldar deuda con Jorge",["Alberto","Víctor"],"LIGA"),
  ("J18","3/4 ene 2026","2026-01-03","Real Betis",2,"","",["Pablo","Jorge"],"LIGA"),
  ("J20","17/18 ene 2026","2026-01-17","CD Leganés",3,"","",["Víctor","Alberto"],"LIGA"),
  ("Fase Liga","Mar 20 ene 2026","2026-01-20","AS Monaco",2,"21:00","",["Pablo","Alberto"],"CHAMPIONS"),
@@ -49,7 +49,14 @@ for m in out:
 print("partidos:", len(out), "| entradas:", sum(c.values()))
 for p in ["Víctor","Pablo","Alberto","Jorge"]:
     print(f"  {p:8} N1={lv[p][1]} N2={lv[p][2]} N3={lv[p][3]}  total={c[p]}")
-# el Excel decía Pablo 17 / Jorge 10, pero en la Real Sociedad fue Jorge, no Pablo
+# La lista de arriba dice quién fue de verdad, no quién tenía la entrada asignada. Tres
+# partidos no salieron como estaban repartidos, y las notas lo dejan anotado:
+#   - Real Sociedad (J24): Pablo no pudo ir y fue Jorge. El Excel decía Pablo 17 / Jorge 10;
+#     esta es la razón por la que aquí son 16 y 11.
+#   - Villarreal (J8): Jorge fue en el sitio de Alberto (así nació la deuda).
+#   - Sevilla (J17): Alberto fue en el sitio de Jorge, saldando esa deuda.
+# Los dos últimos son el mismo intercambio en sentidos opuestos y ambos de nivel 2, así que
+# se cancelan: no mueven ningún total ni ningún nivel. Solo arreglan a quién se ve en la web.
 esperado = {"Víctor":(5,7,4,16), "Pablo":(5,6,5,16), "Alberto":(1,4,5,10), "Jorge":(1,5,5,11)}
 ok = all((lv[p][1],lv[p][2],lv[p][3],c[p]) == e for p, e in esperado.items())
 print("¿coincide con el resumen del Excel?", "SÍ" if ok else "NO")

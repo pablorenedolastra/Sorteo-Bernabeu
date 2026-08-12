@@ -156,41 +156,8 @@ def season_html(key, D, prov):
     <tbody>{mrows}</tbody>
   </table>
 </section>
-{rules_html(D, tot, pairs) if prov else historia_html(D, tot, liga, euro, T)}
+{"" if prov else historia_html(D, tot, liga, euro, T)}
 </div>"""
-
-def rules_html(D, tot, pairs):
-    g = lambda i: next(m for m in D if m["id"] == i)
-    apref = pairs.get(("Alberto","Pablo"),0) + pairs.get(("Alberto","Jorge"),0)
-    return f"""<section>
-  <h2>Reglas del sorteo</h2>
-  <div class="rules"><ul>
-    <li><b>Reparto según lo pagado.</b> Pablo y Víctor pusieron 1/3 cada uno de los dos abonos;
-      Jorge y Alberto, 1/6 cada uno. Las entradas se reparten en esa misma proporción.</li>
-    <li><b>LaLiga se equilibra sola, nivel por nivel.</b> La cuota se aplica por separado a los
-      partidazos (nivel 1), los medios (nivel 2) y los normales (nivel 3) de Liga. Champions y
-      Copa no entran en ese cálculo.</li>
-    <li><b>Un nivel 1 de Liga para cada uno.</b> Solo hay dos —Derbi y Clásico— y son cuatro
-      asientos, así que va uno por cabeza: el Derbi para {esc(' + '.join(g('L30')['asistentes']))}
-      y el Clásico para {esc(' + '.join(g('L35')['asistentes']))}.</li>
-    <li><b>Champions y Copa, bloque aparte.</b> Los 10 partidos (20 entradas) se reparten solo por
-      cuota total: 7 Pablo, 7 Víctor, 3 Jorge y 3 Alberto. Todos los de Champions están puestos
-      como nivel 2 de forma provisional; cuando salga el sorteo del 27 de agosto se puede
-      reequilibrar este bloque sin tocar nada de la Liga.</li>
-    <li><b>Alberto va preferentemente con Pablo o con Jorge.</b> De sus {tot["Alberto"]} partidos,
-      {apref} son con ellos y solo {pairs.get(("Alberto","Víctor"),0)} con Víctor.</li>
-    <li><b>30 de agosto: solo una entrada.</b> Ese día va únicamente {esc(g('L3')['asistentes'][0])}.</li>
-    <li><b>26 de agosto (estreno en casa):</b> van {esc(' + '.join(g('L1')['asistentes']))}, porque
-      Pablo no está.</li>
-    <li><b>Cambios a mano después del sorteo.</b> En el Villarreal (J8) entra Jorge en lugar de
-      Pablo. Es una sustitución directa, así que descuadra el nivel 2 de Liga a propósito: Pablo se
-      queda en 3 y Jorge sube a 3, en vez del 4 y 2 que marcaba la cuota. Totales: Pablo 18
-      ({18/57*100:.1f}%) y Jorge 10 ({10/57*100:.1f}%).</li>
-    <li><b>Partidos teóricos.</b> Las eliminatorias de Champions y los dos de Copa están sorteados
-      por adelantado suponiendo que el Madrid llega. Si no se juegan, esas entradas simplemente no
-      existen y el reparto sigue cuadrando en proporción.</li>
-  </ul></div>
-</section>"""
 
 def historia_html(D, tot, liga, euro, T):
     pc = lambda p: f"{tot[p]/T*100:.1f}%".replace(".", ",")
