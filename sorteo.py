@@ -185,11 +185,26 @@ print("\nMejor score:", round(bs,2))
 # teóricos (4-4-2-2) y tampoco mueve la matriz de parejas, porque Pablo+Víctor pierde el Leipzig
 # pero gana el LASK y Jorge+Víctor al revés. La Liga no se toca en absoluto: los niveles de
 # Champions no entran en GROUPS, así que reetiquetarlos no rebaraja nada.
+#
+# Sobre el nivelado se aplicó después un segundo intercambio pedido por Pablo: Alberto y Jorge
+# se cambian el sitio entre Inter y Leipzig, así que Jorge va al Inter y Alberto al Leipzig.
+# Los dos partidos son del mismo bloque Y del mismo nivel, de modo que no mueve cuotas, ni
+# totales, ni el nivelado (los cuatro asientos de nivel 2 siguen a uno por cabeza). Lo único
+# que mueve son las parejas, y ahí hay que ser honestos:
+#
+#     Alberto+Pablo 5->4    Jorge+Pablo 2->3    Jorge+Víctor 5->4    Alberto+Víctor 3->4
+#
+# ROMPE EL TOPE DE ALBERTO CON VÍCTOR, que era 2 y ya se había subido a 3. Ahora son 4, el
+# doble del original, y es justo lo que Alberto había pedido evitar. Se aplica a peticion
+# expresa de Pablo, avisado del efecto. Es la tensión que describe el comentario de PAIR_T:
+# cada partido que Pablo gana con Jorge obliga a uno más de Alberto con Víctor. La ventaja es
+# que Pablo queda casi equilibrado entre los dos, 3 con Jorge y 4 con Alberto.
 POST = {"L8":  ["Víctor", "Jorge"],     # Villarreal: entra Jorge en lugar de Pablo
         "L16": ["Pablo", "Jorge"],      # Osasuna: Jorge entra por Alberto ...
         "L19": ["Alberto", "Víctor"],   # Levante: ... y Alberto ocupa el sitio de Jorge
-        "C2":  ["Víctor", "Jorge"],     # Leipzig: Jorge entra por Pablo ...
-        "C4":  ["Víctor", "Pablo"]}     # LASK: ... y Pablo ocupa el sitio de Jorge
+        "C4":  ["Víctor", "Pablo"],     # LASK: Pablo entra por Jorge (nivelado) ...
+        "C2":  ["Víctor", "Alberto"],   # Leipzig: ... Jorge salía aquí, y Alberto ocupa su sitio ...
+        "C1":  ["Jorge", "Pablo"]}      # Inter: ... y Jorge se va al Inter, de donde sale Alberto
 for mid, who in POST.items():
     if assign[mid] != who:
         print(f"  cambio manual {mid}: {' + '.join(assign[mid])} -> {' + '.join(who)}")
@@ -209,6 +224,10 @@ for p in PEOPLE:
     print(f"{p:8} Liga: N1={liga[p][1]} N2={liga[p][2]} N3={liga[p][3]} (={sum(liga[p].values())})"
           f"  CH+Copa={euro[p]}  TOTAL={tot[p]:3} {tot[p]/T*100:5.1f}%")
 print("\nParejas:", dict(pairs))
+av = pairs.get(("Alberto","Víctor"), 0)
+if av > 3:
+    print(f"  ⚠️  Alberto + Víctor = {av}: por encima del tope de 3. Decisión consciente,"
+          f" ver el comentario de POST (intercambio Inter/Leipzig).")
 
 # --- nivelado del bloque EURO ---
 # Los 8 asientos garantizados (C1-C4) van por cuota; dentro de ellos, los 4 de nivel 2 (los dos

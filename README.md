@@ -46,12 +46,20 @@ Los dos bloques no se mezclan: cambiar algo en Champions no debe descuadrar la L
 Restricciones adicionales, todas en la función `score()` de `sorteo.py`:
 
 - Alberto va preferentemente con Pablo o con Jorge. El tope eran 2 veces con
-  Víctor; ahora son **3**, por el reequilibrio que se explica más abajo.
+  Víctor. El reequilibrio de Osasuna/Levante lo subió a 3, y el intercambio
+  Inter/Leipzig lo dejó en **4**, el doble del original. Eso ya no lo cumple
+  `score()`: es una decisión tomada a mano en `POST`, a petición de Pablo y
+  sabiendo el efecto. El informe de `sorteo.py` avisa con un ⚠️ cuando pasa de 3,
+  para que no se cuele sin querer.
 - El Derbi y el Clásico son los dos únicos nivel 1 garantizados: 4 asientos, uno
   por cabeza.
 - Nadie tres partidos seguidos; sin sequías largas. Ojo: son penalizaciones que el
   optimizador minimiza, no prohibiciones. Pablo y Víctor van a 18 y 19 de los 29
-  partidos, así que encadenar tres es casi inevitable y de hecho pasa 9 veces.
+  partidos, así que encadenar tres es casi inevitable: el sorteo lo dejó en 9 veces
+  y los cambios de `POST` lo han llevado a **11**. Es esperable, porque los cambios
+  de `POST` se aplican *después* de optimizar y no vuelven a mirar esta regla. Si
+  algún día crece de más, la salida a mano no es reoptimizar (la temporada está
+  empezada) sino buscar un intercambio que la baje.
 - Las parejas se acercan al reparto más variado posible (`PAIR_T`), que no es
   uniforme: como Pablo y Víctor van a 19 de 29 partidos, coinciden por fuerza un
   mínimo de 9 veces.
@@ -92,8 +100,9 @@ conviene confundirlos:
 POST = {"L8":  ["Víctor", "Jorge"],     # sustitución: entra Jorge en lugar de Pablo
         "L16": ["Pablo", "Jorge"],      # intercambio: Jorge entra por Alberto ...
         "L19": ["Alberto", "Víctor"],   #              ... y Alberto ocupa su sitio
-        "C2":  ["Víctor", "Jorge"],     # intercambio: Jorge entra por Pablo ...
-        "C4":  ["Víctor", "Pablo"]}     #              ... y Pablo ocupa su sitio
+        "C4":  ["Víctor", "Pablo"],     # intercambio: Pablo entra por Jorge (nivelado)
+        "C2":  ["Víctor", "Alberto"],   # intercambio: Alberto y Jorge se cambian ...
+        "C1":  ["Jorge", "Pablo"]}      #              ... el sitio entre Inter y Leipzig
 ```
 
 - **Sustitución directa** — alguien entra en el sitio de otro. **Descuadra la cuota
@@ -103,9 +112,17 @@ POST = {"L8":  ["Víctor", "Jorge"],     # sustitución: entra Jorge en lugar de
   los dos partidos son del mismo nivel, tampoco mueve ninguna cuota: es el caso de
   Osasuna/Levante (`L16` y `L19`), el reequilibrio entre Alberto y Jorge. Si son de
   niveles distintos *dentro del bloque EURO* tampoco pasa nada, porque ese bloque se
-  reparte por cuota total y no por niveles: es el caso de Leipzig/LASK (`C2` y `C4`),
-  el nivelado de Champions. Lo que **no** vale es cruzar dos partidos de Liga de
+  reparte por cuota total y no por niveles: es el caso de Leipzig/LASK (`C4`), el
+  nivelado de Champions. Lo que **no** vale es cruzar dos partidos de Liga de
   niveles distintos, porque ahí la cuota sí es por nivel.
+
+  Encima del nivelado hay un segundo intercambio, Inter/Leipzig (`C1` y `C2`), que
+  pidió Pablo: Alberto y Jorge se cambian el sitio, con Jorge al Inter y Alberto al
+  Leipzig. Mismo bloque y mismo nivel, así que no mueve ni cuotas ni el nivelado —
+  los dos partidazos siguen a uno por cabeza. Lo que sí mueve son las parejas, y
+  **sube Alberto+Víctor de 3 a 4**, rompiendo el tope. Está aceptado a conciencia
+  y anotado en el comentario de `POST`; a cambio Pablo queda casi equilibrado entre
+  Jorge (3) y Alberto (4).
 
   Este es el mecanismo para mover parejas o niveles sin romper el reparto: busca dos
   partidos compatibles y cruza a dos personas. Es preferible a reoptimizar, sobre
