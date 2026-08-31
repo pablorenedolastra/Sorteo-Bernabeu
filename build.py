@@ -30,9 +30,17 @@ def bar(counts, width_pct):
                    for lv in (1,2,3) if counts[lv])
     return f'<div class="bar" style="width:{width_pct:.1f}%">{segs}</div>'
 
+# El nivel de un partido es provisional mientras no se sepa contra quién se juega. Tras el sorteo
+# de la fase liga eso solo pasa ya en las eliminatorias (play-off, octavos, cuartos, semis y Copa).
+# Solo aplica a la temporada en curso: en una temporada cerrada el nivel que se anotó es el bueno,
+# aunque la eliminatoria nunca llegara a jugarse.
+def provlv(m, cur):
+    return cur and m["bloque"] == "EURO" and m["rival"] == "Rival por determinar"
+
 def season_html(key, D, prov):
     tot, liga, euro, pairs, bycomp, seats = stats(D)
     T = sum(tot.values())
+    anyprov = any(provlv(m, prov) for m in D)
     maxliga = max(sum(liga[p].values()) for p in PEOPLE) or 1
     maxeuro = max(sum(euro[p].values()) for p in PEOPLE) or 1
 
@@ -46,7 +54,7 @@ def season_html(key, D, prov):
         chips = "".join(f'<span class="who">{esc(p)}</span>' for p in m["asistentes"])
         if m["seats"] == 1: chips += '<span class="who ghost">— libre —</span>'
         nota = f'<div class="nota">{esc(m["nota"])}</div>' if m["nota"] else ""
-        nivsub = "Provisional" if (prov and m["bloque"] == "EURO") else NIVLBL[m["nivel"]]
+        nivsub = "Provisional" if provlv(m, prov) else NIVLBL[m["nivel"]]
         tbd = " tbd" if ("Teórico" in m["nota"] or "Condicional" in m["nota"]) else ""
         rows.append(
             f'<tr data-comp="{m["comp"]}" data-who="{esc("|".join(m["asistentes"]))}" class="mtch{tbd}">'
@@ -70,7 +78,7 @@ def season_html(key, D, prov):
         <div class="pnum"><b>{tot[p]}</b><span>entradas · {tot[p]/T*100:.1f}%</span>
           <span class="delta">{dtxt} vs cuota</span></div>
         <div class="blk"><span class="blkl">LaLiga <b>{lt}</b></span>{bar(liga[p], lt/maxliga*100)}</div>
-        <div class="blk sep"><span class="blkl">{eurolbl} <b>{et}</b>{' <i>· nivel provisional</i>' if prov else ''}</span>
+        <div class="blk sep"><span class="blkl">{eurolbl} <b>{et}</b>{' <i>· eliminatorias con nivel provisional</i>' if anyprov else ''}</span>
           {bar(euro[p], et/maxeuro*100)}</div>
       </div>""")
 
@@ -101,8 +109,10 @@ def season_html(key, D, prov):
 
     if prov:
         sub = ("LaLiga se equilibra por niveles consigo misma. Champions y Copa van en bloque "
-               "aparte, repartidos solo por cuota, porque hasta el sorteo del 27 de agosto no se "
-               "sabe qué partidos son buenos.")
+               "aparte, repartidos por cuota total. Ya se celebró el sorteo de la fase liga, así "
+               "que los cuatro partidos de Champions con rival conocido tienen su nivel de verdad "
+               "y están nivelados: los dos partidazos, Inter y Leipzig, van a uno por cabeza. Las "
+               "eliminatorias siguen con nivel provisional hasta que se sepa el cruce.")
     else:
         sub = ("Temporada cerrada. Así quedó el sorteo, con las notas de deudas e intercambios "
                "tal y como se apuntaron en su momento.")

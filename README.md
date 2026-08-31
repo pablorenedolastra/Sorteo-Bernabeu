@@ -34,9 +34,12 @@ reparten en esa proporción, pero con una separación importante:
 - **Bloque LaLiga** — se equilibra por niveles *consigo mismo*. La cuota se aplica
   por separado dentro del nivel 1 (partidazos), el 2 (medios) y el 3 (normales).
   Los cupos están en `LIGA_Q` en `sorteo.py`.
-- **Bloque Champions + Copa** — se reparte solo por cuota total (`EURO_Q`), sin
-  mirar niveles, porque hasta el sorteo de la fase liga no se sabe qué partidos
-  son buenos. Todos los de Champions están puestos como **nivel 2 provisional**.
+- **Bloque Champions + Copa** — se reparte por cuota total (`EURO_Q`), sin niveles
+  en el sorteo, porque cuando se hizo no se sabía qué partidos iban a ser buenos.
+  Celebrado ya el sorteo de la fase liga (27 ago 2026), los cuatro partidos con
+  rival conocido tienen su nivel de verdad y el bloque se **niveló a mano** con un
+  intercambio en `POST` (ver más abajo). Las eliminatorias (`C5`–`C8`, `K1`, `K2`)
+  siguen con nivel provisional hasta que se conozca el cruce.
 
 Los dos bloques no se mezclan: cambiar algo en Champions no debe descuadrar la Liga.
 
@@ -88,16 +91,25 @@ conviene confundirlos:
 ```python
 POST = {"L8":  ["Víctor", "Jorge"],     # sustitución: entra Jorge en lugar de Pablo
         "L16": ["Pablo", "Jorge"],      # intercambio: Jorge entra por Alberto ...
-        "L19": ["Alberto", "Víctor"]}   #              ... y Alberto ocupa su sitio
+        "L19": ["Alberto", "Víctor"],   #              ... y Alberto ocupa su sitio
+        "C2":  ["Víctor", "Jorge"],     # intercambio: Jorge entra por Pablo ...
+        "C4":  ["Víctor", "Pablo"]}     #              ... y Pablo ocupa su sitio
 ```
 
 - **Sustitución directa** — alguien entra en el sitio de otro. **Descuadra la cuota
   a propósito.** Es el caso del Villarreal (`L8`).
 - **Intercambio** — dos personas se cambian el sitio entre dos partidos *del mismo
-  bloque y del mismo nivel*. Al ser del mismo nivel **no mueve ninguna cuota ni
-  ningún total**: solo cambia con quién va cada uno. Es el caso de Osasuna/Levante
-  (`L16` y `L19`). Si necesitas mover parejas sin romper el reparto, este es el
-  mecanismo: busca dos partidos compatibles y cruza a dos personas.
+  bloque*. **No mueve ningún total**, solo cambia con quién va cada uno. Si además
+  los dos partidos son del mismo nivel, tampoco mueve ninguna cuota: es el caso de
+  Osasuna/Levante (`L16` y `L19`), el reequilibrio entre Alberto y Jorge. Si son de
+  niveles distintos *dentro del bloque EURO* tampoco pasa nada, porque ese bloque se
+  reparte por cuota total y no por niveles: es el caso de Leipzig/LASK (`C2` y `C4`),
+  el nivelado de Champions. Lo que **no** vale es cruzar dos partidos de Liga de
+  niveles distintos, porque ahí la cuota sí es por nivel.
+
+  Este es el mecanismo para mover parejas o niveles sin romper el reparto: busca dos
+  partidos compatibles y cruza a dos personas. Es preferible a reoptimizar, sobre
+  todo con la temporada empezada.
 
 Si el cambio rompe un cupo de forma relevante, dilo en la respuesta y déjalo escrito
 en el comentario de `POST`, que es donde queda el rastro. La página ya no publica las
@@ -112,10 +124,31 @@ el resto de asignaciones.
 Edita la lista `H` en `hist2526.py` y actualiza el dict `esperado` del final, que
 es la comprobación contra el resumen original del Excel.
 
-### Reetiquetar los niveles de Champions (pendiente)
+### Reetiquetar los niveles de Champions (hecho para la fase liga)
 
-Cuando se conozcan los rivales, cambia el campo `nivel` de las filas `C1`–`C8` en
-`sorteo.py`. Al estar en su propio bloque, la Liga no se ve afectada.
+Los niveles de Champions **no entran en `GROUPS`**: el bloque EURO agrupa todos sus
+partidos sin mirar el nivel. Por eso cambiar el campo `nivel` de una fila `C*` no
+rebaraja nada — ni la Liga ni el propio bloque EURO. Es un cambio solo de etiqueta.
+
+Ya está aplicado para los cuatro partidos de la fase liga: Inter y Leipzig nivel 2,
+PSV y LASK nivel 3. Lo que sí hubo que hacer aparte es **nivelar** el reparto dentro
+de esos niveles, con un intercambio en `POST`. Cuando se conozcan los cruces de
+eliminatoria, mismo procedimiento: reetiquetar `C5`–`C8` y, si algún nivel queda
+desigual, corregirlo con un intercambio, nunca reoptimizando.
+
+El objetivo de nivelado del bloque EURO está escrito como `assert` en el informe de
+`sorteo.py`, así que si un cambio lo rompe el script falla en vez de mentir:
+
+| Subconjunto | Asientos | Objetivo |
+|---|---|---|
+| EURO total | 20 | 7 / 7 / 3 / 3 |
+| Champions con rival conocido (`C1`–`C4`) | 8 | 3 / 3 / 1 / 1 |
+| — de ellos nivel 2 (Inter, Leipzig) | 4 | 1 / 1 / 1 / 1 |
+| — de ellos nivel 3 (PSV, LASK) | 4 | 2 / 2 / 0 / 0 |
+| Teóricos y condicionales | 12 | 4 / 4 / 2 / 2 |
+
+Orden: Pablo / Víctor / Jorge / Alberto. Los dos partidazos van a **uno por cabeza**,
+igual que el Derbi y el Clásico en Liga.
 
 ## Verificación
 
@@ -123,6 +156,7 @@ Cuando se conozcan los rivales, cambia el campo `nivel` de las filas `C1`–`C8`
 
 - Las entradas suman **57** en 26/27 y **53** en 25/26.
 - Los cupos por bloque cuadran (`sorteo.py` lo asegura con `assert`).
+- El informe **Nivelado del bloque EURO** sale todo en `OK` (también con `assert`).
 - `hist2526.py` dice `¿coincide con el resumen del Excel? SÍ`.
 - Abre `index.html` y prueba las dos pestañas y los filtros.
 
@@ -141,7 +175,11 @@ Cuando se conozcan los rivales, cambia el campo `nivel` de las filas `C1`–`C8`
 
 - Calendario LaLiga 26/27: sorteo oficial del 30 jun 2026, publicado por
   [Realmadrid.com](https://www.realmadrid.com/es-ES/noticias/futbol/primer-equipo/actualidad/el-calendario-del-real-madrid-para-la-liga-2026-27-30-06-2026).
-- Fechas de Champions: [UEFA](https://www.uefa.com/uefachampionsleague/).
-  Sorteo de la fase liga: **27 de agosto de 2026**.
+- Fechas de Champions: [UEFA](https://www.uefa.com/uefachampionsleague/). Sorteo de
+  la fase liga celebrado el **27 de agosto de 2026**; calendario con días y horas
+  publicado por
+  [Realmadrid.com](https://www.realmadrid.com/es-ES/noticias/futbol/primer-equipo/actualidad/calendarios-del-real-madrid-en-la-primera-fase-de-la-champions-2026-27-29-08-2026)
+  el 29 ago 2026. En el Bernabéu: Inter (8 sep), Leipzig (21 oct), PSV (24 nov) y
+  LASK (19 ene). Fuera: Roma, AEK Atenas, Arsenal y Shakhtar.
 - Fechas de Copa del Rey: [RFEF](https://rfef.es/es/noticias/la-temporada-202627-ya-tiene-establecidas-sus-fechas-clave).
 - Temporada 25/26: Excel del sorteo del año pasado.

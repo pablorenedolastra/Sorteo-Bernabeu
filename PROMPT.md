@@ -19,9 +19,11 @@ Flujo para cada cambio que te pida:
 1. Localiza dónde va: sustituir a alguien en un partido de 26/27 → una entrada en
    `POST` de `sorteo.py`; corregir la temporada pasada → la lista `H` de
    `hist2526.py` (y actualiza el dict `esperado` del final); reetiquetar niveles
-   de Champions → el campo `nivel` de las filas `C1`–`C8`.
+   de Champions → el campo `nivel` de las filas `C1`–`C8` (no rebaraja nada, los
+   niveles de EURO no entran en `GROUPS`).
 2. Regenera y **lee la salida de los scripts**: las entradas tienen que sumar 57
-   en 26/27 y 53 en 25/26, y `hist2526.py` debe decir
+   en 26/27 y 53 en 25/26, el informe `Nivelado del bloque EURO` tiene que salir
+   todo en `OK`, y `hist2526.py` debe decir
    `¿coincide con el resumen del Excel? SÍ`.
 3. Si el cambio descuadra una cuota, no lo escondas: dilo en la respuesta y déjalo
    escrito en el comentario de `POST`, igual que está hecho con el Villarreal. La
@@ -42,9 +44,13 @@ Contexto sobre el sorteo que conviene que tengas presente al proponer cosas:
   de reparto y cualquier desviación hay que justificarla.
 - LaLiga se equilibra por niveles consigo misma. Champions y Copa van en bloque
   aparte y **no deben afectar al equilibrio de la Liga**.
-- Los partidos de Champions están todos como nivel 2 provisional. El sorteo de la
-  fase liga es el **27 de agosto de 2026**; cuando se sepan los rivales hay que
-  reetiquetar niveles y reequilibrar solo ese bloque.
+- El sorteo de la fase liga ya se celebró (27 ago 2026). Los cuatro partidos de casa
+  tienen rival, fecha, hora y nivel de verdad: Inter (nivel 2), Leipzig (nivel 2),
+  PSV (nivel 3) y LASK (nivel 3). El bloque quedó nivelado con el intercambio
+  Leipzig/LASK en `POST`, y el informe **Nivelado del bloque EURO** de `sorteo.py`
+  lo verifica con `assert`. Las eliminatorias (`C5`–`C8`, `K1`, `K2`) siguen con
+  nivel 2 provisional; cuando se sepan los cruces, reetiquetar y, si hace falta,
+  nivelar con otro intercambio — **nunca reoptimizando**, que la temporada ya empezó.
 - Alberto prefiere ir con Pablo o con Jorge.
 - El 30 de agosto (Málaga) solo hay una entrada.
 

@@ -7,18 +7,18 @@ M = [
  ("L1","LIGA","J1","Mié 26 ago 2026","2026-08-26","Real Sociedad",2,"21:00","Estreno en casa (jornada aplazada)",2,"LIGA"),
  ("L3","LIGA","J3","Dom 30 ago 2026","2026-08-30","Málaga CF",3,"17:00","⚠️ Solo 1 entrada disponible",1,"LIGA"),
  ("L5","LIGA","J5","12/13 sep 2026","2026-09-12","Rayo Vallecano",3,"TBD","",2,"LIGA"),
- ("C1","CHAMPIONS","Fase Liga (casa 1)","Sep/Oct 2026","2026-09-09","Rival por determinar",2,"21:00","Sorteo fase liga: 27 ago 2026",2,"EURO"),
+ ("C1","CHAMPIONS","Fase liga · J1","Mar 8 sep 2026","2026-09-08","Inter de Milán",2,"21:00","",2,"EURO"),
  ("L8","LIGA","J8","10/11 oct 2026","2026-10-10","Villarreal CF",2,"TBD","",2,"LIGA"),
  ("L9","LIGA","J9","17/18 oct 2026","2026-10-17","Sevilla FC",2,"TBD","",2,"LIGA"),
- ("C2","CHAMPIONS","Fase Liga (casa 2)","Oct/Nov 2026","2026-10-20","Rival por determinar",2,"21:00","Sorteo fase liga: 27 ago 2026",2,"EURO"),
+ ("C2","CHAMPIONS","Fase liga · J3","Mié 21 oct 2026","2026-10-21","RB Leipzig",2,"21:00","",2,"EURO"),
  ("L13","LIGA","J13","21/22 nov 2026","2026-11-21","RC Celta de Vigo",3,"TBD","",2,"LIGA"),
- ("C3","CHAMPIONS","Fase Liga (casa 3)","Nov/Dic 2026","2026-11-24","Rival por determinar",2,"21:00","Sorteo fase liga: 27 ago 2026",2,"EURO"),
+ ("C3","CHAMPIONS","Fase liga · J5","Mar 24 nov 2026","2026-11-24","PSV Eindhoven",3,"21:00","",2,"EURO"),
  ("L14","LIGA","J14","28/29 nov 2026","2026-11-28","Deportivo Alavés",3,"TBD","",2,"LIGA"),
  ("L16","LIGA","J16","12/13 dic 2026","2026-12-12","CA Osasuna",3,"TBD","",2,"LIGA"),
  ("L18","LIGA","J18","2/3 ene 2027","2027-01-02","Getafe CF",3,"TBD","",2,"LIGA"),
  ("L19","LIGA","J19","9/10 ene 2027","2027-01-09","Levante UD",3,"TBD","",2,"LIGA"),
  ("K1","COPA","Cuartos de final","Mié 13 ene 2027","2027-01-13","Rival por determinar",2,"TBD","Teórico · solo si se juega en el Bernabéu",2,"EURO"),
- ("C4","CHAMPIONS","Fase Liga (casa 4)","Ene 2027","2027-01-19","Rival por determinar",2,"21:00","Sorteo fase liga: 27 ago 2026",2,"EURO"),
+ ("C4","CHAMPIONS","Fase liga · J7","Mar 19 ene 2027","2027-01-19","LASK",3,"21:00","",2,"EURO"),
  ("L21","LIGA","J21","23/24 ene 2027","2027-01-23","Real Betis",2,"TBD","",2,"LIGA"),
  ("L24","LIGA","J24","13/14 feb 2027","2027-02-13","Athletic Club",2,"TBD","",2,"LIGA"),
  ("C5","CHAMPIONS","Play-off (vuelta)","23/24 feb 2027","2027-02-23","Rival por determinar",2,"21:00","Condicional · solo si el Madrid acaba 9º-24º",2,"EURO"),
@@ -171,9 +171,25 @@ print("\nMejor score:", round(bs,2))
 # Jorge+Víctor 6->5 y Alberto+Víctor 2->3. De los seis intercambios posibles se eligió este
 # porque es el que mejor deja las reglas blandas: baja de 10 a 9 las rachas de tres
 # partidos seguidos y elimina la única sequía larga que quedaba.
+#
+# El intercambio Leipzig/LASK es el nivelado del bloque EURO tras el sorteo de la fase liga
+# (27 ago 2026). Con los rivales ya conocidos, C1-C4 dejaron de ser nivel 2 provisional:
+# Inter y Leipzig son nivel 2 de verdad, PSV y LASK bajan a nivel 3. El reparto que salió del
+# sorteo cuadraba en cuota (C1-C4 daba Pablo 3, Víctor 3, Jorge 1, Alberto 1, justo 1/3-1/3-1/6-1/6
+# de los 8 asientos garantizados) pero no dentro de los niveles: Pablo se llevaba Inter Y Leipzig,
+# los dos partidazos, y el único partido garantizado de Jorge era el LASK, el peor rival de los
+# cuatro. Jorge y Pablo se cambian el sitio y los cuatro asientos de nivel 2 quedan a uno por
+# cabeza, igual que se hace en Liga con el Derbi y el Clásico.
+#
+# Es un intercambio, no una sustitución: no mueve EURO_Q (7-7-3-3), no mueve el reparto de los
+# teóricos (4-4-2-2) y tampoco mueve la matriz de parejas, porque Pablo+Víctor pierde el Leipzig
+# pero gana el LASK y Jorge+Víctor al revés. La Liga no se toca en absoluto: los niveles de
+# Champions no entran en GROUPS, así que reetiquetarlos no rebaraja nada.
 POST = {"L8":  ["Víctor", "Jorge"],     # Villarreal: entra Jorge en lugar de Pablo
         "L16": ["Pablo", "Jorge"],      # Osasuna: Jorge entra por Alberto ...
-        "L19": ["Alberto", "Víctor"]}   # Levante: ... y Alberto ocupa el sitio de Jorge
+        "L19": ["Alberto", "Víctor"],   # Levante: ... y Alberto ocupa el sitio de Jorge
+        "C2":  ["Víctor", "Jorge"],     # Leipzig: Jorge entra por Pablo ...
+        "C4":  ["Víctor", "Pablo"]}     # LASK: ... y Pablo ocupa el sitio de Jorge
 for mid, who in POST.items():
     if assign[mid] != who:
         print(f"  cambio manual {mid}: {' + '.join(assign[mid])} -> {' + '.join(who)}")
@@ -193,6 +209,29 @@ for p in PEOPLE:
     print(f"{p:8} Liga: N1={liga[p][1]} N2={liga[p][2]} N3={liga[p][3]} (={sum(liga[p].values())})"
           f"  CH+Copa={euro[p]}  TOTAL={tot[p]:3} {tot[p]/T*100:5.1f}%")
 print("\nParejas:", dict(pairs))
+
+# --- nivelado del bloque EURO ---
+# Los 8 asientos garantizados (C1-C4) van por cuota; dentro de ellos, los 4 de nivel 2 (los dos
+# partidazos) van a uno por cabeza. Los teóricos siguen su propio objetivo 4-4-2-2.
+def cnt(ms):
+    c = Counter()
+    for m in ms:
+        for p in assign[m[0]]: c[p] += 1
+    return {p: c[p] for p in PEOPLE}
+GAR  = [m for m in M if m[10] == "EURO" and m[5] != "Rival por determinar"]
+TEO  = [m for m in M if m[10] == "EURO" and m[5] == "Rival por determinar"]
+CHK = [("EURO total          ", [m for m in M if m[10] == "EURO"], EURO_Q),
+       ("Champions garantizada", GAR,                              {"Pablo":3,"Víctor":3,"Jorge":1,"Alberto":1}),
+       ("  de ellos nivel 2   ", [m for m in GAR if m[6] == 2],     {"Pablo":1,"Víctor":1,"Jorge":1,"Alberto":1}),
+       ("  de ellos nivel 3   ", [m for m in GAR if m[6] == 3],     {"Pablo":2,"Víctor":2,"Jorge":0,"Alberto":0}),
+       ("Teóricos / condicion.", TEO,                               {"Pablo":4,"Víctor":4,"Jorge":2,"Alberto":2})]
+print("\nNivelado del bloque EURO:")
+for lbl, ms, obj in CHK:
+    got = cnt(ms)
+    ok = "OK " if got == obj else "!! "
+    print(f"  {ok}{lbl}  {sum(m[9] for m in ms):2} asientos  {got}"
+          + ("" if got == obj else f"  esperado {obj}"))
+    assert got == obj, (lbl, got, obj)
 print("\nCalendario:")
 for m in M:
     print(f"{m[4]}  {m[10]:4} {m[1][:4]:4} {m[2][:24]:24} {m[5][:22]:22} N{m[6]}  {' + '.join(assign[m[0]])}")
