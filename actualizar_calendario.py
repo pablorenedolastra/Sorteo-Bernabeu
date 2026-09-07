@@ -117,6 +117,26 @@ def en_rango(m, d):
     return abs((d.date() - ref).days) <= DIAS_MARGEN
 
 
+def stages_desconocidos(cal, partidos):
+    """Avisos por rondas de la API que el calendario no sabe emparejar.
+
+    Los `api_stage` de las eliminatorias (C5-C8) son una suposición: cuando se
+    escribieron, la API solo devolvía REGULAR_SEASON y LEAGUE_STAGE, porque el
+    sorteo de octavos aún no se había celebrado. Si el nombre real resulta ser
+    otro, `emparejar` no encontraría nada y el fallo sería mudo: ni error, ni
+    validación fallida, ni partido actualizado, durante toda la eliminatoria.
+
+    Esto lo convierte en un aviso visible la primera noche que ocurra.
+    """
+    conocidos = {m["api_stage"] for m in cal if m.get("api_stage")}
+    conocidos |= {"REGULAR_SEASON", "LEAGUE_STAGE"}
+    vistos = {p.get("stage") for p in partidos
+              if (p.get("homeTeam") or {}).get("id") == ID_MADRID}
+    nuevas = sorted(s for s in vistos - conocidos if s)
+    return [f'la API usa una ronda que no conocemos: "{s}".'
+            f' Revisa api_stage en calendario.json' for s in nuevas]
+
+
 def aplicar(cal, emparejados):
     """Calendario actualizado, lista de cambios y lista de avisos.
 
@@ -152,18 +172,14 @@ def aplicar(cal, emparejados):
                 m["rival"] = r
 
         d = fechas.a_madrid(p.get("utcDate"))
+        fecha_movida = False
         if d and estado in FIRMES:
             f, h, s = fechas.fmt_fecha(d), fechas.fmt_hora(d), fechas.fmt_sort(d)
-            # Dos cosas distintas que conviene no mezclar en el informe: que cambie
-            # la fecha (se ve en la web) y que la API confirme una fecha que ya
-            # estaba bien escrita (solo cambia el estado). Las dos son noticia,
-            # pero decirlas igual haría que el mensaje del commit mintiera.
             if (f, h) != (m.get("fecha"), m.get("hora")):
                 cambios.append(f'{m["id"]}: {m.get("fecha")} {m.get("hora")} -> {f} {h}')
                 m["fecha"], m["hora"], m["sort"] = f, h, s
-            elif estado != estado_antes:
-                cambios.append(f'{m["id"]}: {f} {h} sigue igual, la API pasa de'
-                               f' {estado_antes} a {estado}')
+                fecha_movida = True
+            else:
                 m["sort"] = s
         elif d and estado == "SCHEDULED" and not en_rango(m, d):
             # No se sobreescribe (sería degradar un dato bueno con una estimación),
@@ -172,6 +188,20 @@ def aplicar(cal, emparejados):
                           f' fuera de "{m.get("fecha")}"')
 
         m["aviso"] = AVISOS.get(estado, "")
+
+        # Todo cambio de estado se reporta, no solo los de fecha firme, y esto es
+        # importante: un partido que pasa a POSTPONED no mueve su fecha, pero SÍ
+        # cambia la web (aparece el aviso en rojo). Es justo la noticia que este
+        # cron existe para dar, y durante un tiempo se colaba sin dejar rastro en
+        # el mensaje del commit. Se separa del cambio de fecha para que cada línea
+        # del informe diga exactamente lo que ha pasado.
+        if estado != estado_antes and not fecha_movida:
+            if m["aviso"]:
+                cambios.append(f'{m["id"]}: {m["aviso"]} ({m["fecha"]},'
+                               f' la API pasa de {estado_antes} a {estado})')
+            else:
+                cambios.append(f'{m["id"]}: {m["fecha"]} {m["hora"]} sigue igual,'
+                               f' la API pasa de {estado_antes} a {estado}')
         nuevo.append(m)
 
     nuevo.sort(key=lambda m: m["sort"])
@@ -325,6 +355,7 @@ def main(argv=None):
     emparejados = emparejar(cal, partidos)
     sin_emparejar = [m["id"] for m in cal if m["id"] not in emparejados]
     nuevo, cambios, avisos = aplicar(cal, emparejados)
+    avisos += stages_desconocidos(cal, partidos)
 
     problemas = validar(cal, nuevo)
     if problemas:

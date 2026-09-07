@@ -346,14 +346,114 @@ def test_escritura_atomica():
               os.listdir(d) == ["cal.json"], str(os.listdir(d)))
 
 
+# ------------------------------------------------------------ partidos aplazados
+def test_aplazado_se_reporta():
+    bloque("Un partido aplazado deja rastro en el informe")
+    import actualizar_calendario as ac
+
+    # L16 está en el fixture como POSTPONED. El aviso sale en la web, así que el
+    # informe tiene que decirlo: si no, el commit diría "0 cambios" justo la noche
+    # en que la web empieza a anunciar un aplazamiento.
+    cal = _cal_prueba()
+    nuevo, cambios, _ = ac.aplicar(cal, ac.emparejar(cal, _partidos_fixture()))
+    por_id = {m["id"]: m for m in nuevo}
+
+    check("el aviso llega al calendario", "aplazado" in por_id["L16"]["aviso"])
+    check("y también al informe de cambios", any("L16" in c for c in cambios),
+          f"cambios: {cambios}")
+    linea = next((c for c in cambios if "L16" in c), "")
+    check("la línea del informe menciona el aplazamiento", "aplazado" in linea,
+          f"dice: {linea!r}")
+
+    # Y al revés: si nada cambia de estado, no se inventa una línea
+    ya_puesto = [dict(m, estado="POSTPONED", aviso="⚠️ Partido aplazado")
+                 if m["id"] == "L16" else dict(m) for m in cal]
+    _, cambios2, _ = ac.aplicar(ya_puesto, ac.emparejar(ya_puesto, _partidos_fixture()))
+    check("un aplazamiento ya conocido no se repite cada noche",
+          not any("L16" in c for c in cambios2), f"cambios: {cambios2}")
+
+
+def test_stage_desconocido():
+    bloque("Una ronda nueva de la API no falla en silencio")
+    import actualizar_calendario as ac
+    cal = _cal_prueba()
+
+    check("con las rondas de siempre no avisa de nada",
+          not ac.stages_desconocidos(cal, _partidos_fixture()))
+
+    inventada = _partidos_fixture() + [
+        {"id": 9, "utcDate": "2027-02-24T20:00:00Z", "status": "TIMED",
+         "stage": "RONDA_QUE_NO_CONOCEMOS",
+         "homeTeam": {"id": 86, "shortName": "Real Madrid"},
+         "awayTeam": {"id": 5, "shortName": "Bayern"}}]
+    avisos = ac.stages_desconocidos(cal, inventada)
+    check("avisa de una ronda que no sabe emparejar",
+          any("RONDA_QUE_NO_CONOCEMOS" in a for a in avisos), str(avisos))
+
+
+# ------------------------------------------------------- construccion de la peticion
+def test_peticion():
+    bloque("La petición a la API")
+    import actualizar_calendario as ac
+    import urllib.error
+
+    # Aquí estuvieron dos de los tres bugs que hubo que corregir antes de publicar:
+    # un /v4 duplicado que habría dado 404 todas las noches, y un código de estado
+    # equivocado. Ninguno tenía test. Ahora sí.
+    capturado = {}
+
+    class RespuestaFalsa:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return json.dumps(
+            {"matches": [{"id": i} for i in range(ac.MIN_PARTIDOS)]}).encode()
+
+    def urlopen_falso(req, timeout=None):
+        capturado["url"] = req.full_url
+        capturado["headers"] = dict(req.header_items())
+        return RespuestaFalsa()
+
+    real = ac.urllib.request.urlopen
+    try:
+        ac.urllib.request.urlopen = urlopen_falso
+        partidos = ac.pedir("un-token")
+        check("devuelve los partidos", len(partidos) == ac.MIN_PARTIDOS)
+        check("la URL no repite /v4",
+              capturado["url"].count("/v4") == 1, capturado["url"])
+        check("la URL apunta al equipo y la temporada correctos",
+              capturado["url"].endswith(f"/v4/teams/{ac.ID_MADRID}/matches"
+                                        f"?season={ac.TEMPORADA}"), capturado["url"])
+        check("manda el token en la cabecera que espera la API",
+              capturado["headers"].get("X-auth-token") == "un-token",
+              str(capturado["headers"]))
+
+        # Los códigos de error se traducen a un mensaje entendible
+        for codigo, trozo in ((400, "inválido"), (401, "inválido"),
+                              (403, "gratuito"), (429, "límite")):
+            def falla(req, timeout=None, _c=codigo):
+                raise urllib.error.HTTPError(capturado["url"], _c, "vaya", {}, None)
+            ac.urllib.request.urlopen = falla
+            try:
+                ac.pedir("x")
+                check(f"HTTP {codigo} aborta", False, "no abortó")
+            except ac.RespuestaMala as e:
+                check(f"HTTP {codigo} aborta con un mensaje claro", trozo in str(e),
+                      f"dice: {e}")
+    finally:
+        ac.urllib.request.urlopen = real
+
+
 if __name__ == "__main__":
     test_fechas()
     test_aviso_en_la_web()
     test_emparejar()
     test_aplicar()
     test_aviso_de_jornada_movida()
+    test_aplazado_se_reporta()
+    test_stage_desconocido()
     test_validar()
     test_respuestas_malas()
+    test_peticion()
     test_escritura_atomica()
     print()
     if FALLOS:

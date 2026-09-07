@@ -32,12 +32,12 @@ jobs:
       - name: Tests
         run: python3 test_actualizar.py
 
-      # set -o pipefail es imprescindible aquí: sin él, el "| tee" hace que el
-      # paso salga con el código de salida de tee (casi siempre 0), así que un
-      # fallo de actualizar_calendario.py (API caída, token revocado, formato
-      # cambiado...) quedaría oculto y el job seguiría regenerando y commiteando
-      # como si nada. El principio del proyecto es que un fallo se vea, no que
-      # se trague.
+      # El `set -o pipefail` es un cinturón además de los tirantes: Actions ya
+      # lanza los `run` con `bash -eo pipefail`. Se deja explícito porque si
+      # algún día se cambia el shell del job, sin pipefail este paso saldría con
+      # el código de salida de `tee` (casi siempre 0) y un fallo de
+      # actualizar_calendario.py —API caída, token revocado, formato cambiado—
+      # quedaría oculto: el job seguiría regenerando y commiteando como si nada.
       - name: Actualizar el calendario
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}

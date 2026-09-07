@@ -87,6 +87,27 @@ roto.
 - **Los niveles** de los partidos, y renivelar un bloque cuando se conoce un rival.
 - **El sorteo entero**, claro.
 
+### Antes de la temporada que viene
+
+Nada de esto se actualiza solo, así que conviene tenerlo junto:
+
+1. **Sube `TEMPORADA`** en `actualizar_calendario.py` (ahora `2026`). Si no, la
+   API devuelve la temporada vieja, el script ve menos partidos de los que
+   espera y aborta sin escribir. Falla en seguro, pero falla en silencio: nadie
+   se entera salvo que mire el correo de GitHub.
+2. **Rehaz el sorteo**: borra `calendario.json`, actualiza la tabla `M` de
+   `sorteo.py` con el calendario nuevo y lánzalo. Escribirá `reparto.json` y un
+   `calendario.json` en blanco.
+3. **Vuelve a sacar los ids**: `python3 actualizar_calendario.py --descubrir-ids`
+   y rellena los `api_team`. Cambian con los ascensos y descensos.
+4. **Reactiva el workflow** si GitHub lo ha desactivado. Lo hace tras 60 días sin
+   actividad en el repo, y entre junio y agosto no hay partidos que actualizar,
+   así que pasará casi todos los veranos. Avisa por correo y se reactiva con un
+   clic desde la pestaña Actions.
+
+El comentario de `ID_MADRID` dice contra qué se verificó y cuándo. Los ids de
+equipo de football-data.org son estables, pero no cuesta nada comprobarlo.
+
 ### Si lo ejecutas en un Mac
 
 Si `actualizar_calendario.py` falla con `CERTIFICATE_VERIFY_FAILED`, es que el
