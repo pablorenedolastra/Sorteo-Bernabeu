@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import random, json, itertools
+import random, json, itertools, os
 from collections import Counter, defaultdict
 
 # id, comp, ronda, fecha_txt, sortkey, rival, nivel, hora, nota, seats, bloque
@@ -255,6 +255,30 @@ print("\nCalendario:")
 for m in M:
     print(f"{m[4]}  {m[10]:4} {m[1][:4]:4} {m[2][:24]:24} {m[5][:22]:22} N{m[6]}  {' + '.join(assign[m[0]])}")
 
-json.dump([dict(id=m[0], comp=m[1], ronda=m[2], fecha=m[3], sort=m[4], rival=m[5], nivel=m[6],
-                hora=m[7], nota=m[8], seats=m[9], bloque=m[10], asistentes=assign[m[0]])
-           for m in M], open("sorteo.json","w"), ensure_ascii=False, indent=1)
+# ---- salida ----
+# El calendario y el reparto se guardan por separado a propósito. El calendario lo
+# actualiza actualizar_calendario.py cada noche; el reparto es la salida de este
+# sorteo, con POST ya aplicado, y no lo vuelve a tocar nada automático.
+#
+# Esto no es una manía de orden. Las fechas son una ENTRADA de este script: M.sort
+# ordena por fecha y las reglas 3 y 4 de score() se evalúan sobre ese orden. Si un
+# cron cambiara una fecha y volviera a lanzar sorteo.py, el reparto podría salir
+# distinto: otro Derbi, otro Clásico, otras parejas. Por eso el fichero que toca el
+# cron no contiene asistentes: no tiene forma de alterar el reparto.
+json.dump({m[0]: assign[m[0]] for m in M},
+          open("reparto.json", "w"), ensure_ascii=False, indent=1)
+print("\nreparto.json escrito")
+
+# El calendario solo se crea si no existe. Si ya está, lleva encima el trabajo del
+# cron (fechas confirmadas) y los api_team rellenados a mano, y machacarlo por
+# relanzar el sorteo sería una pérdida silenciosa. Para rehacerlo, bórralo antes.
+if os.path.exists("calendario.json"):
+    print("calendario.json ya existe: no se toca."
+          " Bórralo si de verdad quieres regenerarlo desde cero.")
+else:
+    json.dump([dict(id=m[0], comp=m[1], ronda=m[2], fecha=m[3], sort=m[4], rival=m[5],
+                    nivel=m[6], hora=m[7], nota=m[8], seats=m[9], bloque=m[10],
+                    estado="SCHEDULED", aviso="", api_team=None, api_stage=None)
+               for m in M], open("calendario.json", "w"), ensure_ascii=False, indent=1)
+    print("calendario.json creado. Rellena api_team y api_stage con:"
+          "\n  python3 actualizar_calendario.py --descubrir-ids")
