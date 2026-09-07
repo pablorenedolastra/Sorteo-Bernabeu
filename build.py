@@ -355,6 +355,8 @@ footer a{{color:var(--ink2)}}
   fechas de Champions según <a href="https://www.uefa.com/uefachampionsleague/">UEFA</a> y de Copa
   del Rey según la <a href="https://rfef.es/es/noticias/la-temporada-202627-ya-tiene-establecidas-sus-fechas-clave">RFEF</a>.
   La temporada 2025/26 procede del Excel del sorteo del año pasado.
+  Las fechas y horas se actualizan solas cada noche desde
+  <a href="https://www.football-data.org/">football-data.org</a>; las que aún no son firmes se muestran como rango.
   Documento de consulta — si hay cambios o intercambios, se anotan aparte.
 </footer>
 </div>

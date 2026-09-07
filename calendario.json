@@ -11,9 +11,9 @@
   "nota": "Estreno en casa (jornada aplazada)",
   "seats": 2,
   "bloque": "LIGA",
-  "estado": "SCHEDULED",
+  "estado": "FINISHED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 92,
   "api_stage": null
  },
  {
@@ -28,9 +28,9 @@
   "nota": "⚠️ Solo 1 entrada disponible",
   "seats": 1,
   "bloque": "LIGA",
-  "estado": "SCHEDULED",
+  "estado": "FINISHED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 84,
   "api_stage": null
  },
  {
@@ -45,26 +45,26 @@
   "nota": "",
   "seats": 2,
   "bloque": "EURO",
-  "estado": "SCHEDULED",
+  "estado": "TIMED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 108,
   "api_stage": null
  },
  {
   "id": "L5",
   "comp": "LIGA",
   "ronda": "J5",
-  "fecha": "12/13 sep 2026",
+  "fecha": "Sáb 12 sep 2026",
   "sort": "2026-09-12",
   "rival": "Rayo Vallecano",
   "nivel": 3,
-  "hora": "TBD",
+  "hora": "21:00",
   "nota": "",
   "seats": 2,
   "bloque": "LIGA",
-  "estado": "SCHEDULED",
+  "estado": "TIMED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 87,
   "api_stage": null
  },
  {
@@ -81,7 +81,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 94,
   "api_stage": null
  },
  {
@@ -98,7 +98,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 559,
   "api_stage": null
  },
  {
@@ -113,9 +113,9 @@
   "nota": "",
   "seats": 2,
   "bloque": "EURO",
-  "estado": "SCHEDULED",
+  "estado": "TIMED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 721,
   "api_stage": null
  },
  {
@@ -132,7 +132,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 558,
   "api_stage": null
  },
  {
@@ -147,9 +147,9 @@
   "nota": "",
   "seats": 2,
   "bloque": "EURO",
-  "estado": "SCHEDULED",
+  "estado": "TIMED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 674,
   "api_stage": null
  },
  {
@@ -166,7 +166,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 263,
   "api_stage": null
  },
  {
@@ -183,7 +183,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 79,
   "api_stage": null
  },
  {
@@ -200,7 +200,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 82,
   "api_stage": null
  },
  {
@@ -217,7 +217,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 88,
   "api_stage": null
  },
  {
@@ -249,9 +249,9 @@
   "nota": "",
   "seats": 2,
   "bloque": "EURO",
-  "estado": "SCHEDULED",
+  "estado": "TIMED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 2016,
   "api_stage": null
  },
  {
@@ -268,7 +268,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 90,
   "api_stage": null
  },
  {
@@ -285,7 +285,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 77,
   "api_stage": null
  },
  {
@@ -303,7 +303,7 @@
   "estado": "SCHEDULED",
   "aviso": "",
   "api_team": null,
-  "api_stage": null
+  "api_stage": "PLAYOFFS"
  },
  {
   "id": "L26",
@@ -319,7 +319,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 95,
   "api_stage": null
  },
  {
@@ -353,7 +353,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 80,
   "api_stage": null
  },
  {
@@ -371,7 +371,7 @@
   "estado": "SCHEDULED",
   "aviso": "",
   "api_team": null,
-  "api_stage": null
+  "api_stage": "LAST_16"
  },
  {
   "id": "L30",
@@ -387,7 +387,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 78,
   "api_stage": null
  },
  {
@@ -405,7 +405,7 @@
   "estado": "SCHEDULED",
   "aviso": "",
   "api_team": null,
-  "api_stage": null
+  "api_stage": "QUARTER_FINALS"
  },
  {
   "id": "L33",
@@ -421,7 +421,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 285,
   "api_stage": null
  },
  {
@@ -439,7 +439,7 @@
   "estado": "SCHEDULED",
   "aviso": "",
   "api_team": null,
-  "api_stage": null
+  "api_stage": "SEMI_FINALS"
  },
  {
   "id": "L35",
@@ -455,7 +455,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 81,
   "api_stage": null
  },
  {
@@ -472,7 +472,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 5335,
   "api_stage": null
  },
  {
@@ -489,7 +489,7 @@
   "bloque": "LIGA",
   "estado": "SCHEDULED",
   "aviso": "",
-  "api_team": null,
+  "api_team": 560,
   "api_stage": null
  }
 ]
