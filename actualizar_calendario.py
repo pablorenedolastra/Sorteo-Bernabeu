@@ -154,13 +154,17 @@ def aplicar(cal, emparejados):
         d = fechas.a_madrid(p.get("utcDate"))
         if d and estado in FIRMES:
             f, h, s = fechas.fmt_fecha(d), fechas.fmt_hora(d), fechas.fmt_sort(d)
-            # Se reporta también cuando solo cambia el estado (p.ej. SCHEDULED ->
-            # TIMED con la misma fecha ya escrita a mano): confirmar una fecha es
-            # una noticia en sí misma, aunque el texto no varíe.
-            if (f, h) != (m.get("fecha"), m.get("hora")) or estado != estado_antes:
-                cambios.append(f'{m["id"]}: {m.get("fecha")} {m.get("hora")} '
-                                f'({estado_antes}) -> {f} {h} ({estado})')
+            # Dos cosas distintas que conviene no mezclar en el informe: que cambie
+            # la fecha (se ve en la web) y que la API confirme una fecha que ya
+            # estaba bien escrita (solo cambia el estado). Las dos son noticia,
+            # pero decirlas igual haría que el mensaje del commit mintiera.
+            if (f, h) != (m.get("fecha"), m.get("hora")):
+                cambios.append(f'{m["id"]}: {m.get("fecha")} {m.get("hora")} -> {f} {h}')
                 m["fecha"], m["hora"], m["sort"] = f, h, s
+            elif estado != estado_antes:
+                cambios.append(f'{m["id"]}: {f} {h} sigue igual, la API pasa de'
+                               f' {estado_antes} a {estado}')
+                m["sort"] = s
         elif d and estado == "SCHEDULED" and not en_rango(m, d):
             # No se sobreescribe (sería degradar un dato bueno con una estimación),
             # pero conviene enterarse: es la pista de que la jornada se ha movido.
