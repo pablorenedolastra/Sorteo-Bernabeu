@@ -176,3 +176,39 @@ def aplicar(cal, emparejados):
 
     nuevo.sort(key=lambda m: m["sort"])
     return nuevo, cambios, avisos
+
+
+def validar(viejo, nuevo):
+    """Lista de problemas del calendario nuevo. Vacía si se puede escribir.
+
+    Es la red de seguridad del script: la actualización solo debería mover fechas,
+    horas, rivales por determinar y avisos. Si ha tocado cualquier otra cosa, algo
+    ha ido mal y es preferible no escribir nada.
+    """
+    problemas = []
+    vi = {m["id"]: m for m in viejo}
+    ni = {m["id"]: m for m in nuevo}
+
+    if len(nuevo) != len(viejo):
+        problemas.append(f"el calendario pasa de {len(viejo)} a {len(nuevo)} partidos")
+    if len(ni) != len(nuevo):
+        problemas.append("hay ids repetidos en el calendario nuevo")
+
+    for i in sorted(set(vi) - set(ni)):
+        problemas.append(f"desaparece el partido {i}")
+    for i in sorted(set(ni) - set(vi)):
+        problemas.append(f"aparece un partido que no estaba: {i}")
+
+    for i in sorted(set(vi) & set(ni)):
+        for campo in INTOCABLES:
+            if vi[i].get(campo) != ni[i].get(campo):
+                problemas.append(f'{i}: {campo} cambia de {vi[i].get(campo)!r}'
+                                 f' a {ni[i].get(campo)!r}')
+
+    for bloque in ("LIGA", "EURO"):
+        a = sum(m["seats"] for m in viejo if m.get("bloque") == bloque)
+        b = sum(m["seats"] for m in nuevo if m.get("bloque") == bloque)
+        if a != b:
+            problemas.append(f"los asientos del bloque {bloque} pasan de {a} a {b}")
+
+    return problemas

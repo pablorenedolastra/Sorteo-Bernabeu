@@ -249,12 +249,46 @@ def test_aviso_de_jornada_movida():
     check("no avisa si la fecha cae dentro del rango", not avisos2, str(avisos2))
 
 
+# ------------------------------------------------------------------ validaciones
+def test_validar():
+    bloque("Validaciones previas a escribir")
+    import actualizar_calendario as ac
+    cal = _cal_prueba()
+
+    check("un calendario sin cambios valida", not ac.validar(cal, [dict(m) for m in cal]))
+
+    nuevo, _, _ = ac.aplicar(cal, ac.emparejar(cal, _partidos_fixture()))
+    check("una actualización normal valida", not ac.validar(cal, nuevo),
+          str(ac.validar(cal, nuevo)))
+
+    falta = [dict(m) for m in cal if m["id"] != "L1"]
+    p = ac.validar(cal, falta)
+    check("detecta un partido que desaparece", any("L1" in x for x in p), str(p))
+
+    sobra = [dict(m) for m in cal] + [dict(cal[0], id="ZZ")]
+    check("detecta un partido que aparece de la nada",
+          any("ZZ" in x for x in ac.validar(cal, sobra)))
+
+    for campo, valor in (("seats", 1), ("nivel", 1), ("nota", "otra cosa"),
+                         ("bloque", "EURO"), ("api_team", 999)):
+        tocado = [dict(m) for m in cal]
+        tocado[0][campo] = valor
+        p = ac.validar(cal, tocado)
+        check(f"detecta que ha cambiado {campo}", any(campo in x for x in p), str(p))
+
+    menos = [dict(m) for m in cal]
+    menos[0]["seats"] = 0
+    check("detecta que cambian los asientos de un bloque",
+          any("asientos" in x for x in ac.validar(cal, menos)))
+
+
 if __name__ == "__main__":
     test_fechas()
     test_aviso_en_la_web()
     test_emparejar()
     test_aplicar()
     test_aviso_de_jornada_movida()
+    test_validar()
     print()
     if FALLOS:
         print(f"{len(FALLOS)} fallo(s): " + ", ".join(FALLOS))
