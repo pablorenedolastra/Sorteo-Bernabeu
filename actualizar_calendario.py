@@ -99,3 +99,76 @@ def emparejar(cal, partidos):
         if len(cands) == 1:
             out[m["id"]] = cands[0]
     return out
+
+
+def en_rango(m, d):
+    """¿La fecha d encaja con lo que hay escrito en el partido m?
+
+    Las fechas del calendario son a veces rangos ("12/13 sep 2026", "27/28 abr o
+    4/5 may 2027") que no se pueden parsear de forma fiable, pero cada partido
+    lleva su clave `sort` con el día central. Comparar contra ella con unos días
+    de margen basta para lo único que se quiere: distinguir "LaLiga ha movido la
+    jornada" de "la fecha aún no está fijada".
+    """
+    try:
+        ref = datetime.strptime(m["sort"], "%Y-%m-%d").date()
+    except (ValueError, KeyError, TypeError):
+        return True          # sin referencia fiable, no se avisa de nada
+    return abs((d.date() - ref).days) <= DIAS_MARGEN
+
+
+def aplicar(cal, emparejados):
+    """Calendario actualizado, lista de cambios y lista de avisos.
+
+    Función pura: no lee ni escribe ficheros, no toca la red. Todo lo que decide
+    está en la tabla de precedencia del spec:
+
+      fecha, hora, sort  -> la API, y solo si el estado es firme
+      rival              -> la API, y solo si aún dice "Rival por determinar"
+      estado, aviso      -> la API, siempre
+      el resto           -> la persona; aquí no se tocan nunca
+    """
+    nuevo, cambios, avisos = [], [], []
+
+    for m in cal:
+        m = dict(m)
+        p = emparejados.get(m["id"])
+        if p is None:
+            nuevo.append(m)
+            continue
+
+        estado_antes = m.get("estado")
+        estado = p.get("status") or ""
+        m["estado"] = estado
+
+        # El rival, solo si todavía no se conoce. Se rellena la etiqueta y nada
+        # más: cuando se conoce un rival su nivel real cambia, y renivelar el
+        # bloque es una decisión humana en POST de sorteo.py, no de un script
+        # de madrugada. Por eso `nivel` está en INTOCABLES.
+        if m.get("rival") == SIN_RIVAL:
+            r = nombre_rival(p)
+            if r:
+                cambios.append(f'{m["id"]}: rival por determinar -> {r}')
+                m["rival"] = r
+
+        d = fechas.a_madrid(p.get("utcDate"))
+        if d and estado in FIRMES:
+            f, h, s = fechas.fmt_fecha(d), fechas.fmt_hora(d), fechas.fmt_sort(d)
+            # Se reporta también cuando solo cambia el estado (p.ej. SCHEDULED ->
+            # TIMED con la misma fecha ya escrita a mano): confirmar una fecha es
+            # una noticia en sí misma, aunque el texto no varíe.
+            if (f, h) != (m.get("fecha"), m.get("hora")) or estado != estado_antes:
+                cambios.append(f'{m["id"]}: {m.get("fecha")} {m.get("hora")} '
+                                f'({estado_antes}) -> {f} {h} ({estado})')
+                m["fecha"], m["hora"], m["sort"] = f, h, s
+        elif d and estado == "SCHEDULED" and not en_rango(m, d):
+            # No se sobreescribe (sería degradar un dato bueno con una estimación),
+            # pero conviene enterarse: es la pista de que la jornada se ha movido.
+            avisos.append(f'{m["id"]}: la API apunta al {d:%d/%m/%Y},'
+                          f' fuera de "{m.get("fecha")}"')
+
+        m["aviso"] = AVISOS.get(estado, "")
+        nuevo.append(m)
+
+    nuevo.sort(key=lambda m: m["sort"])
+    return nuevo, cambios, avisos

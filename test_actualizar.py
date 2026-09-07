@@ -171,10 +171,90 @@ def test_emparejar():
           "L21" not in par)
 
 
+# ------------------------------------------------------------------ precedencia
+def test_aplicar():
+    bloque("Precedencia de campos")
+    import actualizar_calendario as ac
+    cal = _cal_prueba()
+    par = ac.emparejar(cal, _partidos_fixture())
+    nuevo, cambios, avisos = ac.aplicar(cal, par)
+    por_id = {m["id"]: m for m in nuevo}
+
+    # 1) TIMED sobreescribe fecha y hora
+    check("TIMED escribe la hora", por_id["L1"]["hora"] == "21:00",
+          f'da {por_id["L1"]["hora"]}')
+    check("TIMED escribe la fecha", por_id["L1"]["fecha"] == "Mié 26 ago 2026",
+          f'da {por_id["L1"]["fecha"]}')
+    check("TIMED actualiza la clave de orden", por_id["L1"]["sort"] == "2026-08-26")
+
+    # 2) SCHEDULED no toca nada: no se degrada un rango escrito a mano
+    check("SCHEDULED no toca la fecha", por_id["L5"]["fecha"] == "12/13 sep 2026",
+          f'da {por_id["L5"]["fecha"]}')
+    check("SCHEDULED no toca la hora", por_id["L5"]["hora"] == "TBD",
+          f'da {por_id["L5"]["hora"]}')
+    check("SCHEDULED sí registra el estado", por_id["L5"]["estado"] == "SCHEDULED")
+
+    # 3) POSTPONED genera aviso
+    check("POSTPONED genera aviso", "aplazado" in por_id["L16"]["aviso"],
+          f'da {por_id["L16"]["aviso"]!r}')
+    check("un partido normal no tiene aviso", por_id["L1"]["aviso"] == "")
+
+    # 4) la eliminatoria recibe el rival, y nada más
+    check("se rellena el rival de la eliminatoria", por_id["C6"]["rival"] == "Bayern",
+          f'da {por_id["C6"]["rival"]}')
+    check("rellenar el rival NO cambia el nivel", por_id["C6"]["nivel"] == 2,
+          "renivelar es una decisión humana en POST, no del cron")
+    check("rellenar el rival NO cambia la nota", por_id["C6"]["nota"] == "Teórico")
+
+    # 5) un rival ya conocido no se sobreescribe con el nombre de la API
+    check("el rival ya escrito se respeta", por_id["L1"]["rival"] == "Real Sociedad",
+          f'da {por_id["L1"]["rival"]}')
+
+    # 6) la Copa se queda intacta
+    k1_antes = [m for m in _cal_prueba() if m["id"] == "K1"][0]
+    check("la Copa del Rey no se toca", por_id["K1"] == k1_antes,
+          "el emparejamiento no la encuentra, así que no debería cambiar nada")
+
+    # 7) los campos de la persona no se tocan nunca
+    antes = {m["id"]: m for m in _cal_prueba()}
+    tocados = [f'{i}.{c}' for i in antes for c in ac.INTOCABLES
+               if antes[i][c] != por_id[i][c]]
+    check("ningún campo intocable ha cambiado", not tocados, str(tocados))
+
+    # 8) el resultado sale ordenado por fecha
+    check("el calendario sale ordenado",
+          [m["sort"] for m in nuevo] == sorted(m["sort"] for m in nuevo))
+
+    # 9) se informa de lo que se ha cambiado
+    check("los cambios se reportan", any("L1" in c for c in cambios), str(cambios))
+
+
+def test_aviso_de_jornada_movida():
+    bloque("Aviso cuando una fecha SCHEDULED se sale del rango")
+    import actualizar_calendario as ac
+
+    # L5 tiene escrito "12/13 sep 2026"; la API lo pone en SCHEDULED el 20 de octubre
+    cal = [m for m in _cal_prueba() if m["id"] == "L5"]
+    lejos = [{"id": 1, "utcDate": "2026-10-20T18:00:00Z", "status": "SCHEDULED",
+              "stage": "REGULAR_SEASON",
+              "homeTeam": {"id": 86, "shortName": "Real Madrid"},
+              "awayTeam": {"id": 87, "shortName": "Rayo Vallecano"}}]
+    nuevo, cambios, avisos = ac.aplicar(cal, ac.emparejar(cal, lejos))
+    check("avisa de que la jornada se ha movido", any("L5" in a for a in avisos), str(avisos))
+    check("pero no sobreescribe la fecha", nuevo[0]["fecha"] == "12/13 sep 2026")
+
+    # dentro del margen no debe avisar
+    cerca = [dict(lejos[0], utcDate="2026-09-13T18:00:00Z")]
+    _, _, avisos2 = ac.aplicar(cal, ac.emparejar(cal, cerca))
+    check("no avisa si la fecha cae dentro del rango", not avisos2, str(avisos2))
+
+
 if __name__ == "__main__":
     test_fechas()
     test_aviso_en_la_web()
     test_emparejar()
+    test_aplicar()
+    test_aviso_de_jornada_movida()
     print()
     if FALLOS:
         print(f"{len(FALLOS)} fallo(s): " + ", ".join(FALLOS))
