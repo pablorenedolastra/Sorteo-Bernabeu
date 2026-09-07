@@ -53,7 +53,13 @@ def season_html(key, D, prov):
             rows.append(f'<tr class="mrow"><th colspan="6" scope="colgroup">{MES[ym[5:7]]} {ym[:4]}</th></tr>')
         chips = "".join(f'<span class="who">{esc(p)}</span>' for p in m["asistentes"])
         if m["seats"] == 1: chips += '<span class="who ghost">— libre —</span>'
-        nota = f'<div class="nota">{esc(m["nota"])}</div>' if m["nota"] else ""
+        # El aviso lo escribe la API (aplazado, suspendido, cancelado) y va primero,
+        # porque es lo que cambia el plan. La nota es texto propio y se queda debajo.
+        nota = ""
+        if m.get("aviso"):
+            nota += f'<div class="nota aviso">{esc(m["aviso"])}</div>'
+        if m["nota"]:
+            nota += f'<div class="nota">{esc(m["nota"])}</div>'
         nivsub = "Provisional" if provlv(m, prov) else NIVLBL[m["nivel"]]
         tbd = " tbd" if ("Teórico" in m["nota"] or "Condicional" in m["nota"]) else ""
         rows.append(
@@ -210,17 +216,17 @@ HTML = f"""<!DOCTYPE html>
 <style>
 :root{{color-scheme:light;
   --bg:#f4f4f1;--surface:#fcfcfb;--line:#e2e1dc;--line2:#eeede9;
-  --ink:#0b0b0b;--ink2:#52514e;--ink3:#83817a;
+  --ink:#0b0b0b;--ink2:#52514e;--ink3:#83817a;--warn:#a04510;
   --s1:#104281;--s2:#2a78d6;--s3:#86b6ef;
   --c-liga:#2a78d6;--c-champions:#eb6834;--c-copa:#1baf7a;--accent:#104281;}}
 @media (prefers-color-scheme:dark){{:root:where(:not([data-theme="light"])){{color-scheme:dark;
   --bg:#111110;--surface:#1a1a19;--line:#33332f;--line2:#262624;
-  --ink:#fff;--ink2:#c3c2b7;--ink3:#8f8e85;
+  --ink:#fff;--ink2:#c3c2b7;--ink3:#8f8e85;--warn:#f0a070;
   --s1:#184f95;--s2:#3987e5;--s3:#9ec5f4;
   --c-liga:#3987e5;--c-champions:#d95926;--c-copa:#199e70;--accent:#9ec5f4;}}}}
 :root[data-theme="dark"]{{color-scheme:dark;
   --bg:#111110;--surface:#1a1a19;--line:#33332f;--line2:#262624;
-  --ink:#fff;--ink2:#c3c2b7;--ink3:#8f8e85;
+  --ink:#fff;--ink2:#c3c2b7;--ink3:#8f8e85;--warn:#f0a070;
   --s1:#184f95;--s2:#3987e5;--s3:#9ec5f4;
   --c-liga:#3987e5;--c-champions:#d95926;--c-copa:#199e70;--accent:#9ec5f4;}}
 *{{box-sizing:border-box}}
@@ -292,6 +298,7 @@ tbody tr:last-child td,tbody tr:last-child th{{border-bottom:0}}
 .ronda{{display:block;color:var(--ink3);font-size:12px;margin-top:3px}}
 .c-rival{{font-weight:600}}
 .nota{{font-weight:400;color:var(--ink3);font-size:12px;margin-top:3px;max-width:34ch}}
+.nota.aviso{{color:var(--warn);font-weight:600}}
 .c-niv{{white-space:nowrap;width:1%}}
 .niv{{display:inline-block;width:26px;text-align:center;padding:2px 0;border-radius:4px;font-size:11px;font-weight:700}}
 .niv.n1{{background:var(--s1);color:#fff}} .niv.n2{{background:var(--s2);color:#fff}}

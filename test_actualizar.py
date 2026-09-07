@@ -15,67 +15,70 @@ def bloque(titulo):
     print(f"\n{titulo}")
 
 
-# ---------------------------------------------------------------- separación
-def test_separacion():
-    bloque("Separación de calendario y reparto")
-    ref = json.load(open("tests/sorteo_referencia.json"))
-    cal = json.load(open("calendario.json"))
-    rep = json.load(open("reparto.json"))
+# --------------------------------------------------------------- avisos en la web
+def _build_en_tmp(partidos):
+    """Ejecuta build.py en un directorio aparte y devuelve el index.html generado.
 
-    check("el calendario tiene los 29 partidos", len(cal) == 29, f"tiene {len(cal)}")
-    check("el reparto tiene los 29 partidos", len(rep) == 29, f"tiene {len(rep)}")
-    check("el calendario no lleva asistentes",
-          all("asistentes" not in m for m in cal),
-          "algún partido de calendario.json lleva asistentes: el cron podría tocar el reparto")
-
-    # reconstruir el sorteo.json de siempre y comparar campo a campo
-    recon = [dict(m, asistentes=rep[m["id"]]) for m in cal]
-    recon.sort(key=lambda m: m["sort"])
-    por_id = {m["id"]: m for m in recon}
-    dif = []
-    for m in ref:
-        n = por_id.get(m["id"])
-        if n is None:
-            dif.append(f'{m["id"]}: no está en el calendario')
-            continue
-        for k, v in m.items():
-            if n.get(k) != v:
-                dif.append(f'{m["id"]}.{k}: {v!r} -> {n.get(k)!r}')
-    detalle = "\n        ".join(dif[:10])
-    if len(dif) > 10:
-        detalle += f"\n        (y {len(dif) - 10} diferencia(s) más)"
-    check("el reparto es idéntico al de antes del refactor", not dif, detalle)
-
-
-# ------------------------------------------------------------------- build.py
-def test_build_no_cambia_la_web():
-    bloque("build.py genera la misma web que antes del refactor")
-    import subprocess
-    r = subprocess.run([sys.executable, "build.py"], capture_output=True, text=True)
-    check("build.py termina sin error", r.returncode == 0, r.stderr.strip()[:400])
+    build.py NO se puede importar: al cargarse lee los JSON y reescribe
+    index.html, así que un `import build` en un test destrozaría la web del
+    repo. Se ejecuta como proceso en un tmpdir con los datos que interesan.
+    """
+    import shutil, subprocess, tempfile
+    d = tempfile.mkdtemp()
+    for f in ("build.py", "hist2526.py"):
+        shutil.copy(f, d)
+    cal = [{k: v for k, v in m.items() if k != "asistentes"} for m in partidos]
+    rep = {m["id"]: m["asistentes"] for m in partidos}
+    json.dump(cal, open(os.path.join(d, "calendario.json"), "w", encoding="utf-8"),
+              ensure_ascii=False)
+    json.dump(rep, open(os.path.join(d, "reparto.json"), "w", encoding="utf-8"),
+              ensure_ascii=False)
+    subprocess.run([sys.executable, "hist2526.py"], cwd=d,
+                   capture_output=True, text=True, check=True)
+    r = subprocess.run([sys.executable, "build.py"], cwd=d, capture_output=True, text=True)
     if r.returncode != 0:
+        return None, r.stderr.strip()[:400]
+    return open(os.path.join(d, "index.html"), encoding="utf-8").read(), ""
+
+
+def _partido_de_prueba(**extra):
+    base = {
+        "id": "L1", "comp": "LIGA", "ronda": "J1", "fecha": "Mié 26 ago 2026",
+        "sort": "2026-08-26", "rival": "Real Sociedad", "nivel": 2, "hora": "21:00",
+        "nota": "Estreno en casa", "seats": 2, "bloque": "LIGA",
+        "estado": "TIMED", "aviso": "", "api_team": 92, "api_stage": None,
+        "asistentes": ["Pablo", "Víctor"],
+    }
+    base.update(extra)
+    return base
+
+
+def test_aviso_en_la_web():
+    bloque("La web muestra los avisos de la API")
+
+    html, err = _build_en_tmp([_partido_de_prueba(aviso="⚠️ Partido aplazado")])
+    check("build.py genera la web con un aviso", html is not None, err)
+    if html is None:
         return
-    nuevo = open("index.html", encoding="utf-8").read()
-    viejo = open("tests/index_referencia.html", encoding="utf-8").read()
-    if nuevo == viejo:
-        check("index.html es idéntico al de referencia", True)
-        return
-    # localizar la primera línea que difiere, para que el fallo sea útil
-    a, b = viejo.splitlines(), nuevo.splitlines()
-    det = f"referencia {len(a)} líneas, generado {len(b)}"
-    for i, (x, y) in enumerate(zip(a, b), 1):
-        if x != y:
-            det = f"primera diferencia en la línea {i}:\n        - {x[:150]}\n        + {y[:150]}"
-            break
-    check("index.html es idéntico al de referencia", False, det)
+    check("el aviso aparece en el HTML", "Partido aplazado" in html)
+    check("la nota sigue apareciendo", "Estreno en casa" in html)
+    check("el aviso lleva su propia clase", 'class="nota aviso"' in html)
+
+    limpio, err = _build_en_tmp([_partido_de_prueba()])
+    check("sin aviso no se pinta el div",
+          limpio is not None and 'class="nota aviso"' not in limpio, err)
+
+    # Los partidos de 2025/26 (hist2526.json) no tienen el campo `aviso`. build.py
+    # los pinta en la misma función, así que tiene que aguantarlo sin petar. Si esto
+    # falla, es que se ha usado m["aviso"] en vez de m.get("aviso").
+    sin_campo = _partido_de_prueba()
+    del sin_campo["aviso"]
+    html2, err2 = _build_en_tmp([sin_campo])
+    check("un partido sin el campo aviso no rompe el render", html2 is not None, err2)
 
 
 if __name__ == "__main__":
-    if not os.path.exists("calendario.json"):
-        print("falta calendario.json: ejecuta python3 sorteo.py")
-        sys.exit(1)
-    test_separacion()
-    test_build_no_cambia_la_web()
+    test_aviso_en_la_web()
     print()
     if FALLOS:
         print(f"{len(FALLOS)} fallo(s): " + ", ".join(FALLOS))
