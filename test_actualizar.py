@@ -53,6 +53,48 @@ def _partido_de_prueba(**extra):
     return base
 
 
+# ------------------------------------------------------------------- fechas.py
+def test_fechas():
+    bloque("Conversión de fechas y formato español")
+    import fechas
+
+    # Verano: Madrid va 2 horas por delante de UTC
+    d = fechas.a_madrid("2026-08-26T19:00:00Z")
+    check("verano: 19:00Z son las 21:00 en Madrid", fechas.fmt_hora(d) == "21:00",
+          f"da {fechas.fmt_hora(d)}")
+    check("verano: la fecha se formatea en español", fechas.fmt_fecha(d) == "Mié 26 ago 2026",
+          f"da {fechas.fmt_fecha(d)}")
+    check("verano: la clave de orden es ISO", fechas.fmt_sort(d) == "2026-08-26",
+          f"da {fechas.fmt_sort(d)}")
+
+    # Invierno: Madrid va 1 hora por delante
+    d = fechas.a_madrid("2027-01-19T20:00:00Z")
+    check("invierno: 20:00Z son las 21:00 en Madrid", fechas.fmt_hora(d) == "21:00",
+          f"da {fechas.fmt_hora(d)}")
+    check("invierno: la fecha se formatea en español", fechas.fmt_fecha(d) == "Mar 19 ene 2027",
+          f"da {fechas.fmt_fecha(d)}")
+
+    # Un partido a medianoche UTC cae al día siguiente en Madrid
+    d = fechas.a_madrid("2027-03-13T23:30:00Z")
+    check("23:30Z de un 13 de marzo es el 14 en Madrid",
+          fechas.fmt_fecha(d) == "Dom 14 mar 2027", f"da {fechas.fmt_fecha(d)}")
+
+    # Entradas inválidas devuelven None en vez de reventar
+    for malo in (None, "", "no soy una fecha", "2026-13-45T99:00:00Z"):
+        check(f"a_madrid({malo!r}) devuelve None", fechas.a_madrid(malo) is None)
+
+    # Los doce meses y los siete días, para que no haya un mes escrito a medias
+    meses = [fechas.fmt_fecha(fechas.a_madrid(f"2026-{m:02d}-15T12:00:00Z")).split()[2]
+             for m in range(1, 13)]
+    check("los doce meses tienen abreviatura",
+          meses == ["ene", "feb", "mar", "abr", "may", "jun",
+                    "jul", "ago", "sep", "oct", "nov", "dic"], f"da {meses}")
+    dias = [fechas.fmt_fecha(fechas.a_madrid(f"2026-06-{d:02d}T12:00:00Z")).split()[0]
+            for d in range(1, 8)]
+    check("los siete días tienen abreviatura",
+          dias == ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"], f"da {dias}")
+
+
 def test_aviso_en_la_web():
     bloque("La web muestra los avisos de la API")
 
@@ -78,6 +120,7 @@ def test_aviso_en_la_web():
 
 
 if __name__ == "__main__":
+    test_fechas()
     test_aviso_en_la_web()
     print()
     if FALLOS:
