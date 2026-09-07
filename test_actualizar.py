@@ -119,9 +119,59 @@ def test_aviso_en_la_web():
     check("un partido sin el campo aviso no rompe el render", html2 is not None, err2)
 
 
+# -------------------------------------------------------------- emparejamiento
+def _cal_prueba():
+    """Cuatro partidos del calendario real, con los api_team del fixture."""
+    return [
+        {"id": "L1", "comp": "LIGA", "ronda": "J1", "fecha": "Mié 26 ago 2026",
+         "sort": "2026-08-26", "rival": "Real Sociedad", "nivel": 2, "hora": "21:00",
+         "nota": "Estreno en casa", "seats": 2, "bloque": "LIGA",
+         "estado": "SCHEDULED", "aviso": "", "api_team": 92, "api_stage": None},
+        {"id": "L5", "comp": "LIGA", "ronda": "J5", "fecha": "12/13 sep 2026",
+         "sort": "2026-09-12", "rival": "Rayo Vallecano", "nivel": 3, "hora": "TBD",
+         "nota": "", "seats": 2, "bloque": "LIGA",
+         "estado": "SCHEDULED", "aviso": "", "api_team": 87, "api_stage": None},
+        {"id": "L16", "comp": "LIGA", "ronda": "J16", "fecha": "12/13 dic 2026",
+         "sort": "2026-12-12", "rival": "CA Osasuna", "nivel": 3, "hora": "TBD",
+         "nota": "", "seats": 2, "bloque": "LIGA",
+         "estado": "SCHEDULED", "aviso": "", "api_team": 79, "api_stage": None},
+        {"id": "C6", "comp": "CHAMPIONS", "ronda": "Octavos (vuelta)",
+         "fecha": "16/17 mar 2027", "sort": "2027-03-16", "rival": "Rival por determinar",
+         "nivel": 2, "hora": "21:00", "nota": "Teórico", "seats": 2, "bloque": "EURO",
+         "estado": "SCHEDULED", "aviso": "", "api_team": None, "api_stage": "LAST_16"},
+        {"id": "K1", "comp": "COPA", "ronda": "Cuartos de final", "fecha": "Mié 13 ene 2027",
+         "sort": "2027-01-13", "rival": "Rival por determinar", "nivel": 2, "hora": "TBD",
+         "nota": "Teórico · solo si se juega en el Bernabéu", "seats": 2, "bloque": "EURO",
+         "estado": "SCHEDULED", "aviso": "", "api_team": None, "api_stage": None},
+    ]
+
+
+def _partidos_fixture():
+    return json.load(open("tests/respuesta_api.json"))["matches"]
+
+
+def test_emparejar():
+    bloque("Emparejamiento API ↔ calendario")
+    import actualizar_calendario as ac
+    par = ac.emparejar(_cal_prueba(), _partidos_fixture())
+
+    check("empareja por id de equipo, no por nombre", par.get("L1", {}).get("id") == 500001,
+          f'L1 -> {par.get("L1", {}).get("id")}')
+    check("empareja el Rayo", par.get("L5", {}).get("id") == 500002)
+    check("empareja una eliminatoria por stage", par.get("C6", {}).get("id") == 500007,
+          f'C6 -> {par.get("C6", {}).get("id")}')
+    check("descarta la ida a domicilio de la eliminatoria",
+          par.get("C6", {}).get("homeTeam", {}).get("id") == ac.ID_MADRID)
+    check("la Copa del Rey no se empareja (no la cubre el plan gratuito)",
+          "K1" not in par, f'K1 -> {par.get("K1")}')
+    check("un partido sin correspondencia en la API no se empareja",
+          "L21" not in par)
+
+
 if __name__ == "__main__":
     test_fechas()
     test_aviso_en_la_web()
+    test_emparejar()
     print()
     if FALLOS:
         print(f"{len(FALLOS)} fallo(s): " + ", ".join(FALLOS))
