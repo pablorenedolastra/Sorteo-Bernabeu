@@ -41,7 +41,10 @@ def test_separacion():
         for k, v in m.items():
             if n.get(k) != v:
                 dif.append(f'{m["id"]}.{k}: {v!r} -> {n.get(k)!r}')
-    check("el reparto es idéntico al de antes del refactor", not dif, "\n        ".join(dif[:10]))
+    detalle = "\n        ".join(dif[:10])
+    if len(dif) > 10:
+        detalle += f"\n        (y {len(dif) - 10} diferencia(s) más)"
+    check("el reparto es idéntico al de antes del refactor", not dif, detalle)
 
 
 if __name__ == "__main__":

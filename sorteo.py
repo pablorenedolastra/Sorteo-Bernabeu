@@ -265,8 +265,8 @@ for m in M:
 # cron cambiara una fecha y volviera a lanzar sorteo.py, el reparto podría salir
 # distinto: otro Derbi, otro Clásico, otras parejas. Por eso el fichero que toca el
 # cron no contiene asistentes: no tiene forma de alterar el reparto.
-json.dump({m[0]: assign[m[0]] for m in M},
-          open("reparto.json", "w"), ensure_ascii=False, indent=1)
+with open("reparto.json", "w", encoding="utf-8") as f:
+    json.dump({m[0]: assign[m[0]] for m in M}, f, ensure_ascii=False, indent=1)
 print("\nreparto.json escrito")
 
 # El calendario solo se crea si no existe. Si ya está, lleva encima el trabajo del
@@ -276,9 +276,10 @@ if os.path.exists("calendario.json"):
     print("calendario.json ya existe: no se toca."
           " Bórralo si de verdad quieres regenerarlo desde cero.")
 else:
-    json.dump([dict(id=m[0], comp=m[1], ronda=m[2], fecha=m[3], sort=m[4], rival=m[5],
-                    nivel=m[6], hora=m[7], nota=m[8], seats=m[9], bloque=m[10],
-                    estado="SCHEDULED", aviso="", api_team=None, api_stage=None)
-               for m in M], open("calendario.json", "w"), ensure_ascii=False, indent=1)
+    with open("calendario.json", "w", encoding="utf-8") as f:
+        json.dump([dict(id=m[0], comp=m[1], ronda=m[2], fecha=m[3], sort=m[4], rival=m[5],
+                        nivel=m[6], hora=m[7], nota=m[8], seats=m[9], bloque=m[10],
+                        estado="SCHEDULED", aviso="", api_team=None, api_stage=None)
+                   for m in M], f, ensure_ascii=False, indent=1)
     print("calendario.json creado. Rellena api_team y api_stage con:"
           "\n  python3 actualizar_calendario.py --descubrir-ids")
