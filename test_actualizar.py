@@ -24,21 +24,24 @@ def _build_en_tmp(partidos):
     repo. Se ejecuta como proceso en un tmpdir con los datos que interesan.
     """
     import shutil, subprocess, tempfile
-    d = tempfile.mkdtemp()
-    for f in ("build.py", "hist2526.py"):
-        shutil.copy(f, d)
-    cal = [{k: v for k, v in m.items() if k != "asistentes"} for m in partidos]
-    rep = {m["id"]: m["asistentes"] for m in partidos}
-    json.dump(cal, open(os.path.join(d, "calendario.json"), "w", encoding="utf-8"),
-              ensure_ascii=False)
-    json.dump(rep, open(os.path.join(d, "reparto.json"), "w", encoding="utf-8"),
-              ensure_ascii=False)
-    subprocess.run([sys.executable, "hist2526.py"], cwd=d,
-                   capture_output=True, text=True, check=True)
-    r = subprocess.run([sys.executable, "build.py"], cwd=d, capture_output=True, text=True)
-    if r.returncode != 0:
-        return None, r.stderr.strip()[:400]
-    return open(os.path.join(d, "index.html"), encoding="utf-8").read(), ""
+    with tempfile.TemporaryDirectory() as d:
+        for script in ("build.py", "hist2526.py"):
+            shutil.copy(script, d)
+        cal = [{k: v for k, v in m.items() if k != "asistentes"} for m in partidos]
+        rep = {m["id"]: m["asistentes"] for m in partidos}
+        for nombre, datos in (("calendario.json", cal), ("reparto.json", rep)):
+            with open(os.path.join(d, nombre), "w", encoding="utf-8") as f:
+                json.dump(datos, f, ensure_ascii=False)
+        # Los dos scripts se tratan igual: si cualquiera falla se devuelve su stderr
+        # para que el test lo reporte con check(), en vez de reventar la ejecución
+        # entera con un traceback y llevarse por delante los demás bloques.
+        for script in ("hist2526.py", "build.py"):
+            r = subprocess.run([sys.executable, script], cwd=d,
+                               capture_output=True, text=True)
+            if r.returncode != 0:
+                return None, f"{script}: {r.stderr.strip()[:400]}"
+        with open(os.path.join(d, "index.html"), encoding="utf-8") as f:
+            return f.read(), ""
 
 
 def _partido_de_prueba(**extra):

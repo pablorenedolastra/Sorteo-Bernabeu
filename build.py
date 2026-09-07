@@ -202,6 +202,9 @@ def historia_html(D, tot, liga, euro, T):
 # pintar la web. Ver la nota del final de sorteo.py sobre por qué están separados.
 CAL = json.load(open("calendario.json", encoding="utf-8"))
 REP = json.load(open("reparto.json", encoding="utf-8"))
+# Solo se comprueba esta dirección: el calendario manda sobre qué partidos existen,
+# así que una entrada sobrante en reparto.json se ignora sin más. Al revés no: un
+# partido sin reparto saldría en la web sin nadie asignado, y eso sí es un error.
 huerfanos = [m["id"] for m in CAL if m["id"] not in REP]
 assert not huerfanos, f"partidos del calendario que no están en reparto.json: {huerfanos}"
 D27 = sorted((dict(m, asistentes=REP[m["id"]]) for m in CAL), key=lambda m: m["sort"])
