@@ -1,0 +1,72 @@
+name: Actualizar calendario
+
+# El calendario de LaLiga se concreta jornada a jornada con unas dos semanas de
+# antelación, así que se mira todas las noches. 03:17 UTC (madrugada en Madrid);
+# el minuto no es redondo a propósito, porque los cron en punto coinciden con los
+# picos de carga de Actions y se retrasan más.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+# Necesario para que el job pueda commitear el index.html regenerado.
+permissions:
+  contents: write
+
+concurrency:
+  group: actualizar-calendario
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Antes de tocar nada: si la API ha cambiado de formato, esto falla con un
+      # mensaje claro en vez de dejar el calendario a medias.
+      - name: Tests
+        run: python3 test_actualizar.py
+
+      # set -o pipefail es imprescindible aquí: sin él, el "| tee" hace que el
+      # paso salga con el código de salida de tee (casi siempre 0), así que un
+      # fallo de actualizar_calendario.py (API caída, token revocado, formato
+      # cambiado...) quedaría oculto y el job seguiría regenerando y commiteando
+      # como si nada. El principio del proyecto es que un fallo se vea, no que
+      # se trague.
+      - name: Actualizar el calendario
+        env:
+          FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+        run: |
+          set -o pipefail
+          python3 actualizar_calendario.py | tee /tmp/salida.txt
+
+      # hist2526.json está en .gitignore (es regenerable), así que en un checkout
+      # limpio no existe y build.py no puede leerlo. Hay que generarlo antes.
+      - name: Regenerar index.html
+        run: |
+          python3 hist2526.py
+          python3 build.py
+
+      # Solo se commitea si algo ha cambiado de verdad. Sin esta condición serían
+      # 365 commits vacíos al año.
+      - name: Commitear si hay cambios
+        run: |
+          if git diff --quiet -- calendario.json index.html; then
+            echo "sin cambios: no hay nada que commitear"
+            exit 0
+          fi
+          resumen=$(grep -c '^  cambio' /tmp/salida.txt || true)
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add calendario.json index.html
+          {
+            echo "Actualiza el calendario (${resumen:-0} cambio(s))"
+            echo
+            grep -E '^  (cambio|aviso)' /tmp/salida.txt || echo "(sin detalle)"
+          } | git commit -F -
+          git push
