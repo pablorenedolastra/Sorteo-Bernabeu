@@ -194,12 +194,12 @@ def historia_html(D, tot, liga, euro, T):
 # El calendario (mutable, lo actualiza el cron cada noche) y el reparto (congelado,
 # la salida del sorteo) viven en ficheros separados. Aquí se vuelven a juntar para
 # pintar la web. Ver la nota del final de sorteo.py sobre por qué están separados.
-CAL = json.load(open("calendario.json"))
-REP = json.load(open("reparto.json"))
+CAL = json.load(open("calendario.json", encoding="utf-8"))
+REP = json.load(open("reparto.json", encoding="utf-8"))
 huerfanos = [m["id"] for m in CAL if m["id"] not in REP]
 assert not huerfanos, f"partidos del calendario que no están en reparto.json: {huerfanos}"
 D27 = sorted((dict(m, asistentes=REP[m["id"]]) for m in CAL), key=lambda m: m["sort"])
-D26 = json.load(open("hist2526.json"))
+D26 = json.load(open("hist2526.json", encoding="utf-8"))
 
 HTML = f"""<!DOCTYPE html>
 <html lang="es"><head>
