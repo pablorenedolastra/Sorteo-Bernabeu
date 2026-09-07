@@ -212,3 +212,147 @@ def validar(viejo, nuevo):
             problemas.append(f"los asientos del bloque {bloque} pasan de {a} a {b}")
 
     return problemas
+
+
+class RespuestaMala(Exception):
+    """La API ha contestado algo que no se puede usar. No se escribe nada."""
+
+
+def partidos_de(cuerpo):
+    """Extrae la lista de partidos de la respuesta, o revienta con RespuestaMala.
+
+    Una respuesta corta es más peligrosa que un error de red: si la API devuelve
+    200 con tres partidos, escribir el resultado dejaría el calendario a medias.
+    """
+    if not isinstance(cuerpo, dict):
+        raise RespuestaMala(f"la respuesta no es un objeto JSON, es {type(cuerpo).__name__}")
+    partidos = cuerpo.get("matches")
+    if not isinstance(partidos, list):
+        raise RespuestaMala("la respuesta no trae una lista 'matches'")
+    if len(partidos) < MIN_PARTIDOS:
+        raise RespuestaMala(f"la API devuelve {len(partidos)} partidos, menos de los"
+                            f" {MIN_PARTIDOS} esperados: no me fío")
+    return partidos
+
+
+def pedir(token, id_equipo=ID_MADRID, temporada=TEMPORADA):
+    """Los partidos del equipo en la temporada. Una sola petición."""
+    url = f"{BASE}/teams/{id_equipo}/matches?season={temporada}"
+    req = urllib.request.Request(url, headers={"X-Auth-Token": token,
+                                               "User-Agent": "sorteo-bernabeu"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            cuerpo = json.load(r)
+    except urllib.error.HTTPError as e:
+        detalle = {400: "token inválido",
+                   401: "token inválido o ausente",
+                   403: "el plan gratuito no cubre esto, o falta el token",
+                   429: "límite de peticiones superado"}.get(e.code, e.reason)
+        raise RespuestaMala(f"HTTP {e.code}: {detalle}")
+    except urllib.error.URLError as e:
+        raise RespuestaMala(f"no se pudo conectar: {e.reason}")
+    except json.JSONDecodeError as e:
+        raise RespuestaMala(f"la respuesta no es JSON válido: {e}")
+    return partidos_de(cuerpo)
+
+
+def escribir_atomico(ruta, datos):
+    """Escribe el JSON en un temporal y lo renombra encima.
+
+    El renombrado es atómico en el mismo sistema de ficheros, así que el
+    calendario nunca queda a medias: o está el de antes, o está el nuevo entero.
+    """
+    tmp = ruta + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(datos, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+    os.replace(tmp, ruta)
+
+
+def descubrir_ids(partidos):
+    """Texto con los rivales en casa y su id, para rellenar api_team a mano."""
+    lineas = ["Rivales en el Bernabéu esta temporada (para el campo api_team):", ""]
+    vistos = set()
+    for p in sorted(partidos, key=lambda p: p.get("utcDate") or ""):
+        if (p.get("homeTeam") or {}).get("id") != ID_MADRID:
+            continue
+        v = p.get("awayTeam") or {}
+        clave = (v.get("id"), p.get("stage"))
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        comp = (p.get("competition") or {}).get("code", "?")
+        lineas.append(f'  api_team {str(v.get("id")):>6}   {comp:3}  {p.get("stage","")[:16]:16}'
+                      f'  {v.get("shortName") or v.get("name")}')
+    lineas += ["", "Y para las eliminatorias sin rival, el campo api_stage:",
+               "  C5 -> PLAYOFFS    C6 -> LAST_16    C7 -> QUARTER_FINALS    C8 -> SEMI_FINALS"]
+    return "\n".join(lineas)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--dry-run", action="store_true",
+                    help="dice qué cambiaría, sin escribir nada")
+    ap.add_argument("--descubrir-ids", action="store_true",
+                    help="lista los ids de equipo de la API para rellenar api_team")
+    ap.add_argument("--guardar-respuesta", metavar="FICHERO",
+                    help="guarda la respuesta cruda de la API (para el fixture de test)")
+    ap.add_argument("--token", default=os.environ.get("FOOTBALL_DATA_TOKEN"),
+                    help="token de football-data.org (por defecto, $FOOTBALL_DATA_TOKEN)")
+    a = ap.parse_args(argv)
+
+    if not a.token:
+        print("falta el token. Ponlo en la variable FOOTBALL_DATA_TOKEN o pásalo con --token."
+              "\nSe consigue gratis en https://www.football-data.org/client/register",
+              file=sys.stderr)
+        return 2
+
+    try:
+        partidos = pedir(a.token)
+    except RespuestaMala as e:
+        print(f"la API no ha dado algo usable: {e}\nno se toca {CALENDARIO}", file=sys.stderr)
+        return 1
+
+    if a.guardar_respuesta:
+        escribir_atomico(a.guardar_respuesta, {"matches": partidos})
+        print(f"respuesta guardada en {a.guardar_respuesta} ({len(partidos)} partidos)")
+
+    if a.descubrir_ids:
+        print(descubrir_ids(partidos))
+        return 0
+
+    cal = json.load(open(CALENDARIO, encoding="utf-8"))
+    emparejados = emparejar(cal, partidos)
+    sin_emparejar = [m["id"] for m in cal if m["id"] not in emparejados]
+    nuevo, cambios, avisos = aplicar(cal, emparejados)
+
+    problemas = validar(cal, nuevo)
+    if problemas:
+        print("la actualización ha tocado algo que no debía, no se escribe nada:",
+              file=sys.stderr)
+        for p in problemas:
+            print(f"  - {p}", file=sys.stderr)
+        return 1
+
+    print(f"{len(partidos)} partidos en la API, {len(emparejados)} emparejados"
+          f" de los {len(cal)} del calendario")
+    if sin_emparejar:
+        print(f"sin correspondencia en la API: {', '.join(sin_emparejar)}")
+    for c in cambios:
+        print(f"  cambio  {c}")
+    for v in avisos:
+        print(f"  aviso   {v}")
+    if not cambios:
+        print("  nada que cambiar")
+
+    if a.dry_run:
+        print("\n--dry-run: no se ha escrito nada")
+        return 0
+
+    escribir_atomico(CALENDARIO, nuevo)
+    print(f"\n{CALENDARIO} actualizado ({len(cambios)} cambio(s))")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -282,6 +282,70 @@ def test_validar():
           any("asientos" in x for x in ac.validar(cal, menos)))
 
 
+# ------------------------------------------------------- respuestas degradadas
+def test_respuestas_malas():
+    bloque("Respuestas de la API que no son de fiar")
+    import actualizar_calendario as ac
+
+    def falla(nombre, cuerpo):
+        try:
+            ac.partidos_de(cuerpo)
+            check(nombre, False, "debería haber abortado y no lo hizo")
+        except ac.RespuestaMala:
+            check(nombre, True)
+
+    falla("aborta si el cuerpo no es un objeto", [])
+    falla("aborta si no hay lista 'matches'", {"resultSet": {"count": 0}})
+    falla("aborta si 'matches' no es una lista", {"matches": "vaya"})
+    falla("aborta si la respuesta viene vacía", {"matches": []})
+    falla("aborta si vienen menos partidos de los esperados",
+          {"matches": [{"id": i} for i in range(ac.MIN_PARTIDOS - 1)]})
+
+    buena = {"matches": [{"id": i} for i in range(ac.MIN_PARTIDOS)]}
+    check("acepta una respuesta con partidos de sobra",
+          len(ac.partidos_de(buena)) == ac.MIN_PARTIDOS)
+
+    # El fixture sintético tiene menos partidos que el mínimo (le bastan 8 para
+    # probar los casos), así que solo se comprueba su forma.
+    fx = json.load(open("tests/respuesta_api.json"))
+    check("el fixture sintético tiene la forma que espera el script",
+          isinstance(fx.get("matches"), list) and len(fx["matches"]) > 0)
+
+    # Si ya se ha capturado una respuesta real (tarea 10), se comprueba que trae
+    # los campos de los que depende el código. Es la prueba de que el esquema
+    # supuesto en el fixture coincide con el de verdad.
+    if os.path.exists("tests/respuesta_real.json"):
+        real = json.load(open("tests/respuesta_real.json"))
+        try:
+            ps = ac.partidos_de(real)
+            check("la respuesta real pasa la validación", True)
+        except ac.RespuestaMala as e:
+            check("la respuesta real pasa la validación", False, str(e))
+            ps = []
+        for campo in ("utcDate", "status", "homeTeam", "awayTeam", "competition"):
+            check(f"la respuesta real trae el campo {campo}",
+                  all(campo in p for p in ps), "el esquema de la API ha cambiado")
+        check("la respuesta real trae stage en los partidos de Champions",
+              all("stage" in p for p in ps
+                  if (p.get("competition") or {}).get("code") == "CL"))
+        check("el Madrid aparece como local en varios partidos",
+              sum(1 for p in ps if (p.get("homeTeam") or {}).get("id") == ac.ID_MADRID) >= 19,
+              "¿es correcto ID_MADRID?")
+
+
+def test_escritura_atomica():
+    bloque("Escritura del calendario")
+    import actualizar_calendario as ac, tempfile
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "cal.json")
+        datos = _cal_prueba()
+        ac.escribir_atomico(p, datos)
+        check("escribe un JSON que se puede volver a leer",
+              json.load(open(p, encoding="utf-8")) == datos)
+        check("no deja ficheros temporales al lado",
+              os.listdir(d) == ["cal.json"], str(os.listdir(d)))
+
+
 if __name__ == "__main__":
     test_fechas()
     test_aviso_en_la_web()
@@ -289,6 +353,8 @@ if __name__ == "__main__":
     test_aplicar()
     test_aviso_de_jornada_movida()
     test_validar()
+    test_respuestas_malas()
+    test_escritura_atomica()
     print()
     if FALLOS:
         print(f"{len(FALLOS)} fallo(s): " + ", ".join(FALLOS))
