@@ -11,20 +11,115 @@ Jorge y Alberto**. Publicada en GitHub Pages:
 
 ## Cómo está montado
 
-Tres scripts de Python sin dependencias externas (solo la librería estándar):
+Las fechas y horas **se actualizan solas cada noche**. Un workflow de GitHub
+Actions pregunta a [football-data.org](https://www.football-data.org/) cuándo se
+juega cada partido, actualiza `calendario.json`, regenera `index.html` y lo
+commitea si algo ha cambiado. Todo Python sin dependencias externas, solo la
+librería estándar.
 
-| Fichero | Qué hace |
+Los datos viven en tres ficheros, con un dueño claro cada uno:
+
+| Fichero | Qué es | Quién lo cambia |
+|---|---|---|
+| `calendario.json` | Los 29 partidos: fecha, hora, rival, nivel, asientos. | el cron, cada noche |
+| `reparto.json` | Quién va a cada partido, con `POST` ya aplicado. | `sorteo.py`, una vez por temporada |
+| `hist2526.json` | La temporada 2025/26, que ya es historia. | nadie |
+
+Y los scripts:
+
+| Script | Qué hace |
 |---|---|
-| `sorteo.py` | Datos y sorteo de la temporada **2026/27**. Escribe `sorteo.json`. |
-| `hist2526.py` | Datos históricos de la temporada **2025/26**. Escribe `hist2526.json`. |
-| `build.py` | Lee los dos JSON y genera `index.html` (una sola página, sin dependencias). |
+| `sorteo.py` | Celebra el sorteo. Escribe `reparto.json`. Se lanza **a mano**. |
+| `actualizar_calendario.py` | Pide las fechas a la API y actualiza `calendario.json`. Lo lanza el cron. |
+| `hist2526.py` | Datos de 2025/26. Escribe `hist2526.json`. |
+| `build.py` | Cruza los tres JSON y genera `index.html`. |
+| `test_actualizar.py` | Los tests. `python3 test_actualizar.py`, sin dependencias. |
 
 ```bash
-python3 sorteo.py && python3 hist2526.py && python3 build.py
+python3 actualizar_calendario.py --dry-run   # qué cambiaría, sin tocar nada
+python3 actualizar_calendario.py             # actualizar el calendario
+python3 build.py                             # regenerar index.html
 ```
 
-`build.py` deja el resultado en `index.html`. La página es autocontenida: todo el
-CSS y el JS van inline, no carga nada de fuera y funciona abriéndola en local.
+Hace falta una key gratuita de football-data.org en la variable
+`FOOTBALL_DATA_TOKEN` (en GitHub ya está como secret del repo). La página sigue
+siendo autocontenida: todo el CSS y el JS van inline, no carga nada de fuera y
+funciona abriéndola en local.
+
+### Por qué el calendario y el reparto están separados
+
+Porque las fechas son una **entrada** del sorteo, no un adorno. `sorteo.py`
+ordena los partidos por fecha (`M.sort`) y las reglas 3 y 4 de `score()` —"nadie
+tres partidos seguidos", "sin sequías largas"— se evalúan sobre ese orden. Si un
+proceso automático cambiara una fecha y volviera a lanzar el sorteo, el reparto
+podría salir distinto: otro Derbi, otro Clásico, otras parejas.
+
+Por eso el fichero que toca el cron, `calendario.json`, **no contiene
+asistentes**. No tiene forma de alterar el reparto, y `sorteo.py` no se ejecuta
+nunca de forma automática.
+
+### Las dos reglas del actualizador
+
+**Solo escribe fechas que la API da por finalizadas** (`status: TIMED`). Esto no
+es prudencia teórica: los partidos que la API aún no ha fijado los devuelve con
+la hora a las `00:00Z`, que en Madrid son las 01:00 o las 02:00. El día que se
+montó esto, 31 de los 46 partidos estaban así. Escribirlos habría anunciado el
+Villarreal a las dos de la madrugada de un domingo. Un rango escrito a mano como
+"12/13 sep 2026" es mejor información que eso.
+
+Si la API mueve una jornada fuera del rango escrito, no sobreescribe nada, pero
+lo avisa en el mensaje del commit. Es la pista temprana de que LaLiga ha
+recolocado la jornada.
+
+**Rellenar el rival de una eliminatoria no cambia su nivel.** Cuando se conoce el
+rival, renivelar el bloque sigue siendo una decisión que se toma a mano en
+`POST`, como se hizo con Inter, Leipzig, PSV y LASK. El cron pone la etiqueta y
+nada más.
+
+Ante cualquier respuesta rara de la API —un error, un corte de red, o menos
+partidos de los esperados— el script **aborta sin escribir**. Una fecha
+desactualizada es mejor que una inventada, y mucho mejor que un `index.html`
+roto.
+
+### Lo que sigue siendo manual
+
+- **La Copa del Rey** (`K1`, `K2`): el plan gratuito de la API no la cubre.
+- **Los niveles** de los partidos, y renivelar un bloque cuando se conoce un rival.
+- **El sorteo entero**, claro.
+
+### Antes de la temporada que viene
+
+Nada de esto se actualiza solo, así que conviene tenerlo junto:
+
+1. **Sube `TEMPORADA`** en `actualizar_calendario.py` (ahora `2026`). Si no, la
+   API devuelve la temporada vieja, el script ve menos partidos de los que
+   espera y aborta sin escribir. Falla en seguro, pero falla en silencio: nadie
+   se entera salvo que mire el correo de GitHub.
+2. **Rehaz el sorteo**: borra `calendario.json`, actualiza la tabla `M` de
+   `sorteo.py` con el calendario nuevo y lánzalo. Escribirá `reparto.json` y un
+   `calendario.json` en blanco.
+3. **Vuelve a sacar los ids**: `python3 actualizar_calendario.py --descubrir-ids`
+   y rellena los `api_team`. Cambian con los ascensos y descensos.
+4. **Reactiva el workflow** si GitHub lo ha desactivado. Lo hace tras 60 días sin
+   actividad en el repo, y entre junio y agosto no hay partidos que actualizar,
+   así que pasará casi todos los veranos. Avisa por correo y se reactiva con un
+   clic desde la pestaña Actions.
+
+El comentario de `ID_MADRID` dice contra qué se verificó y cuándo. Los ids de
+equipo de football-data.org son estables, pero no cuesta nada comprobarlo.
+
+### Si lo ejecutas en un Mac
+
+Si `actualizar_calendario.py` falla con `CERTIFICATE_VERIFY_FAILED`, es que el
+Python del instalador de python.org no tiene los certificados instalados. Se
+arregla una sola vez:
+
+```bash
+open "/Applications/Python 3.13/Install Certificates.command"
+```
+
+O, como parche puntual, `SSL_CERT_FILE=/etc/ssl/cert.pem` delante del comando.
+En GitHub Actions no pasa: el runner de Ubuntu trae su almacén configurado.
 
 ## Las reglas del reparto
 

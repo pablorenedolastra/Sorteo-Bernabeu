@@ -1,0 +1,462 @@
+# -*- coding: utf-8 -*-
+"""Tests del proyecto. Sin dependencias: python3 test_actualizar.py"""
+import json, sys, os
+
+FALLOS = []
+
+def check(nombre, cond, detalle=""):
+    if cond:
+        print(f"  ok    {nombre}")
+    else:
+        print(f"  FALLO {nombre}" + (f"\n        {detalle}" if detalle else ""))
+        FALLOS.append(nombre)
+
+def bloque(titulo):
+    print(f"\n{titulo}")
+
+
+# --------------------------------------------------------------- avisos en la web
+def _build_en_tmp(partidos):
+    """Ejecuta build.py en un directorio aparte y devuelve el index.html generado.
+
+    build.py NO se puede importar: al cargarse lee los JSON y reescribe
+    index.html, así que un `import build` en un test destrozaría la web del
+    repo. Se ejecuta como proceso en un tmpdir con los datos que interesan.
+    """
+    import shutil, subprocess, tempfile
+    with tempfile.TemporaryDirectory() as d:
+        for script in ("build.py", "hist2526.py"):
+            shutil.copy(script, d)
+        cal = [{k: v for k, v in m.items() if k != "asistentes"} for m in partidos]
+        rep = {m["id"]: m["asistentes"] for m in partidos}
+        for nombre, datos in (("calendario.json", cal), ("reparto.json", rep)):
+            with open(os.path.join(d, nombre), "w", encoding="utf-8") as f:
+                json.dump(datos, f, ensure_ascii=False)
+        # Los dos scripts se tratan igual: si cualquiera falla se devuelve su stderr
+        # para que el test lo reporte con check(), en vez de reventar la ejecución
+        # entera con un traceback y llevarse por delante los demás bloques.
+        for script in ("hist2526.py", "build.py"):
+            r = subprocess.run([sys.executable, script], cwd=d,
+                               capture_output=True, text=True)
+            if r.returncode != 0:
+                return None, f"{script}: {r.stderr.strip()[:400]}"
+        with open(os.path.join(d, "index.html"), encoding="utf-8") as f:
+            return f.read(), ""
+
+
+def _partido_de_prueba(**extra):
+    base = {
+        "id": "L1", "comp": "LIGA", "ronda": "J1", "fecha": "Mié 26 ago 2026",
+        "sort": "2026-08-26", "rival": "Real Sociedad", "nivel": 2, "hora": "21:00",
+        "nota": "Estreno en casa", "seats": 2, "bloque": "LIGA",
+        "estado": "TIMED", "aviso": "", "api_team": 92, "api_stage": None,
+        "asistentes": ["Pablo", "Víctor"],
+    }
+    base.update(extra)
+    return base
+
+
+# ------------------------------------------------------------------- fechas.py
+def test_fechas():
+    bloque("Conversión de fechas y formato español")
+    import fechas
+
+    # Verano: Madrid va 2 horas por delante de UTC
+    d = fechas.a_madrid("2026-08-26T19:00:00Z")
+    check("verano: 19:00Z son las 21:00 en Madrid", fechas.fmt_hora(d) == "21:00",
+          f"da {fechas.fmt_hora(d)}")
+    check("verano: la fecha se formatea en español", fechas.fmt_fecha(d) == "Mié 26 ago 2026",
+          f"da {fechas.fmt_fecha(d)}")
+    check("verano: la clave de orden es ISO", fechas.fmt_sort(d) == "2026-08-26",
+          f"da {fechas.fmt_sort(d)}")
+
+    # Invierno: Madrid va 1 hora por delante
+    d = fechas.a_madrid("2027-01-19T20:00:00Z")
+    check("invierno: 20:00Z son las 21:00 en Madrid", fechas.fmt_hora(d) == "21:00",
+          f"da {fechas.fmt_hora(d)}")
+    check("invierno: la fecha se formatea en español", fechas.fmt_fecha(d) == "Mar 19 ene 2027",
+          f"da {fechas.fmt_fecha(d)}")
+
+    # Un partido a medianoche UTC cae al día siguiente en Madrid
+    d = fechas.a_madrid("2027-03-13T23:30:00Z")
+    check("23:30Z de un 13 de marzo es el 14 en Madrid",
+          fechas.fmt_fecha(d) == "Dom 14 mar 2027", f"da {fechas.fmt_fecha(d)}")
+
+    # Entradas inválidas devuelven None en vez de reventar
+    for malo in (None, "", "no soy una fecha", "2026-13-45T99:00:00Z"):
+        check(f"a_madrid({malo!r}) devuelve None", fechas.a_madrid(malo) is None)
+
+    # Los doce meses y los siete días, para que no haya un mes escrito a medias
+    meses = [fechas.fmt_fecha(fechas.a_madrid(f"2026-{m:02d}-15T12:00:00Z")).split()[2]
+             for m in range(1, 13)]
+    check("los doce meses tienen abreviatura",
+          meses == ["ene", "feb", "mar", "abr", "may", "jun",
+                    "jul", "ago", "sep", "oct", "nov", "dic"], f"da {meses}")
+    dias = [fechas.fmt_fecha(fechas.a_madrid(f"2026-06-{d:02d}T12:00:00Z")).split()[0]
+            for d in range(1, 8)]
+    check("los siete días tienen abreviatura",
+          dias == ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"], f"da {dias}")
+
+
+def test_aviso_en_la_web():
+    bloque("La web muestra los avisos de la API")
+
+    html, err = _build_en_tmp([_partido_de_prueba(aviso="⚠️ Partido aplazado")])
+    check("build.py genera la web con un aviso", html is not None, err)
+    if html is None:
+        return
+    check("el aviso aparece en el HTML", "Partido aplazado" in html)
+    check("la nota sigue apareciendo", "Estreno en casa" in html)
+    check("el aviso lleva su propia clase", 'class="nota aviso"' in html)
+
+    limpio, err = _build_en_tmp([_partido_de_prueba()])
+    check("sin aviso no se pinta el div",
+          limpio is not None and 'class="nota aviso"' not in limpio, err)
+
+    # Los partidos de 2025/26 (hist2526.json) no tienen el campo `aviso`. build.py
+    # los pinta en la misma función, así que tiene que aguantarlo sin petar. Si esto
+    # falla, es que se ha usado m["aviso"] en vez de m.get("aviso").
+    sin_campo = _partido_de_prueba()
+    del sin_campo["aviso"]
+    html2, err2 = _build_en_tmp([sin_campo])
+    check("un partido sin el campo aviso no rompe el render", html2 is not None, err2)
+
+
+# -------------------------------------------------------------- emparejamiento
+def _cal_prueba():
+    """Cuatro partidos del calendario real, con los api_team del fixture."""
+    return [
+        {"id": "L1", "comp": "LIGA", "ronda": "J1", "fecha": "Mié 26 ago 2026",
+         "sort": "2026-08-26", "rival": "Real Sociedad", "nivel": 2, "hora": "21:00",
+         "nota": "Estreno en casa", "seats": 2, "bloque": "LIGA",
+         "estado": "SCHEDULED", "aviso": "", "api_team": 92, "api_stage": None},
+        {"id": "L5", "comp": "LIGA", "ronda": "J5", "fecha": "12/13 sep 2026",
+         "sort": "2026-09-12", "rival": "Rayo Vallecano", "nivel": 3, "hora": "TBD",
+         "nota": "", "seats": 2, "bloque": "LIGA",
+         "estado": "SCHEDULED", "aviso": "", "api_team": 87, "api_stage": None},
+        {"id": "L16", "comp": "LIGA", "ronda": "J16", "fecha": "12/13 dic 2026",
+         "sort": "2026-12-12", "rival": "CA Osasuna", "nivel": 3, "hora": "TBD",
+         "nota": "", "seats": 2, "bloque": "LIGA",
+         "estado": "SCHEDULED", "aviso": "", "api_team": 79, "api_stage": None},
+        {"id": "C6", "comp": "CHAMPIONS", "ronda": "Octavos (vuelta)",
+         "fecha": "16/17 mar 2027", "sort": "2027-03-16", "rival": "Rival por determinar",
+         "nivel": 2, "hora": "21:00", "nota": "Teórico", "seats": 2, "bloque": "EURO",
+         "estado": "SCHEDULED", "aviso": "", "api_team": None, "api_stage": "LAST_16"},
+        {"id": "K1", "comp": "COPA", "ronda": "Cuartos de final", "fecha": "Mié 13 ene 2027",
+         "sort": "2027-01-13", "rival": "Rival por determinar", "nivel": 2, "hora": "TBD",
+         "nota": "Teórico · solo si se juega en el Bernabéu", "seats": 2, "bloque": "EURO",
+         "estado": "SCHEDULED", "aviso": "", "api_team": None, "api_stage": None},
+    ]
+
+
+def _partidos_fixture():
+    return json.load(open("tests/respuesta_api.json"))["matches"]
+
+
+def test_emparejar():
+    bloque("Emparejamiento API ↔ calendario")
+    import actualizar_calendario as ac
+    par = ac.emparejar(_cal_prueba(), _partidos_fixture())
+
+    check("empareja por id de equipo, no por nombre", par.get("L1", {}).get("id") == 500001,
+          f'L1 -> {par.get("L1", {}).get("id")}')
+    check("empareja el Rayo", par.get("L5", {}).get("id") == 500002)
+    check("empareja una eliminatoria por stage", par.get("C6", {}).get("id") == 500007,
+          f'C6 -> {par.get("C6", {}).get("id")}')
+    check("descarta la ida a domicilio de la eliminatoria",
+          par.get("C6", {}).get("homeTeam", {}).get("id") == ac.ID_MADRID)
+    check("la Copa del Rey no se empareja (no la cubre el plan gratuito)",
+          "K1" not in par, f'K1 -> {par.get("K1")}')
+    check("un partido sin correspondencia en la API no se empareja",
+          "L21" not in par)
+
+
+# ------------------------------------------------------------------ precedencia
+def test_aplicar():
+    bloque("Precedencia de campos")
+    import actualizar_calendario as ac
+    cal = _cal_prueba()
+    par = ac.emparejar(cal, _partidos_fixture())
+    nuevo, cambios, avisos = ac.aplicar(cal, par)
+    por_id = {m["id"]: m for m in nuevo}
+
+    # 1) TIMED sobreescribe fecha y hora
+    check("TIMED escribe la hora", por_id["L1"]["hora"] == "21:00",
+          f'da {por_id["L1"]["hora"]}')
+    check("TIMED escribe la fecha", por_id["L1"]["fecha"] == "Mié 26 ago 2026",
+          f'da {por_id["L1"]["fecha"]}')
+    check("TIMED actualiza la clave de orden", por_id["L1"]["sort"] == "2026-08-26")
+
+    # 2) SCHEDULED no toca nada: no se degrada un rango escrito a mano
+    check("SCHEDULED no toca la fecha", por_id["L5"]["fecha"] == "12/13 sep 2026",
+          f'da {por_id["L5"]["fecha"]}')
+    check("SCHEDULED no toca la hora", por_id["L5"]["hora"] == "TBD",
+          f'da {por_id["L5"]["hora"]}')
+    check("SCHEDULED sí registra el estado", por_id["L5"]["estado"] == "SCHEDULED")
+
+    # 3) POSTPONED genera aviso
+    check("POSTPONED genera aviso", "aplazado" in por_id["L16"]["aviso"],
+          f'da {por_id["L16"]["aviso"]!r}')
+    check("un partido normal no tiene aviso", por_id["L1"]["aviso"] == "")
+
+    # 4) la eliminatoria recibe el rival, y nada más
+    check("se rellena el rival de la eliminatoria", por_id["C6"]["rival"] == "Bayern",
+          f'da {por_id["C6"]["rival"]}')
+    check("rellenar el rival NO cambia el nivel", por_id["C6"]["nivel"] == 2,
+          "renivelar es una decisión humana en POST, no del cron")
+    check("rellenar el rival NO cambia la nota", por_id["C6"]["nota"] == "Teórico")
+
+    # 5) un rival ya conocido no se sobreescribe con el nombre de la API
+    check("el rival ya escrito se respeta", por_id["L1"]["rival"] == "Real Sociedad",
+          f'da {por_id["L1"]["rival"]}')
+
+    # 6) la Copa se queda intacta
+    k1_antes = [m for m in _cal_prueba() if m["id"] == "K1"][0]
+    check("la Copa del Rey no se toca", por_id["K1"] == k1_antes,
+          "el emparejamiento no la encuentra, así que no debería cambiar nada")
+
+    # 7) los campos de la persona no se tocan nunca
+    antes = {m["id"]: m for m in _cal_prueba()}
+    tocados = [f'{i}.{c}' for i in antes for c in ac.INTOCABLES
+               if antes[i][c] != por_id[i][c]]
+    check("ningún campo intocable ha cambiado", not tocados, str(tocados))
+
+    # 8) el resultado sale ordenado por fecha
+    check("el calendario sale ordenado",
+          [m["sort"] for m in nuevo] == sorted(m["sort"] for m in nuevo))
+
+    # 9) se informa de lo que se ha cambiado
+    check("los cambios se reportan", any("L1" in c for c in cambios), str(cambios))
+
+
+def test_aviso_de_jornada_movida():
+    bloque("Aviso cuando una fecha SCHEDULED se sale del rango")
+    import actualizar_calendario as ac
+
+    # L5 tiene escrito "12/13 sep 2026"; la API lo pone en SCHEDULED el 20 de octubre
+    cal = [m for m in _cal_prueba() if m["id"] == "L5"]
+    lejos = [{"id": 1, "utcDate": "2026-10-20T18:00:00Z", "status": "SCHEDULED",
+              "stage": "REGULAR_SEASON",
+              "homeTeam": {"id": 86, "shortName": "Real Madrid"},
+              "awayTeam": {"id": 87, "shortName": "Rayo Vallecano"}}]
+    nuevo, cambios, avisos = ac.aplicar(cal, ac.emparejar(cal, lejos))
+    check("avisa de que la jornada se ha movido", any("L5" in a for a in avisos), str(avisos))
+    check("pero no sobreescribe la fecha", nuevo[0]["fecha"] == "12/13 sep 2026")
+
+    # dentro del margen no debe avisar
+    cerca = [dict(lejos[0], utcDate="2026-09-13T18:00:00Z")]
+    _, _, avisos2 = ac.aplicar(cal, ac.emparejar(cal, cerca))
+    check("no avisa si la fecha cae dentro del rango", not avisos2, str(avisos2))
+
+
+# ------------------------------------------------------------------ validaciones
+def test_validar():
+    bloque("Validaciones previas a escribir")
+    import actualizar_calendario as ac
+    cal = _cal_prueba()
+
+    check("un calendario sin cambios valida", not ac.validar(cal, [dict(m) for m in cal]))
+
+    nuevo, _, _ = ac.aplicar(cal, ac.emparejar(cal, _partidos_fixture()))
+    check("una actualización normal valida", not ac.validar(cal, nuevo),
+          str(ac.validar(cal, nuevo)))
+
+    falta = [dict(m) for m in cal if m["id"] != "L1"]
+    p = ac.validar(cal, falta)
+    check("detecta un partido que desaparece", any("L1" in x for x in p), str(p))
+
+    sobra = [dict(m) for m in cal] + [dict(cal[0], id="ZZ")]
+    check("detecta un partido que aparece de la nada",
+          any("ZZ" in x for x in ac.validar(cal, sobra)))
+
+    for campo, valor in (("seats", 1), ("nivel", 1), ("nota", "otra cosa"),
+                         ("bloque", "EURO"), ("api_team", 999)):
+        tocado = [dict(m) for m in cal]
+        tocado[0][campo] = valor
+        p = ac.validar(cal, tocado)
+        check(f"detecta que ha cambiado {campo}", any(campo in x for x in p), str(p))
+
+    menos = [dict(m) for m in cal]
+    menos[0]["seats"] = 0
+    check("detecta que cambian los asientos de un bloque",
+          any("asientos" in x for x in ac.validar(cal, menos)))
+
+
+# ------------------------------------------------------- respuestas degradadas
+def test_respuestas_malas():
+    bloque("Respuestas de la API que no son de fiar")
+    import actualizar_calendario as ac
+
+    def falla(nombre, cuerpo):
+        try:
+            ac.partidos_de(cuerpo)
+            check(nombre, False, "debería haber abortado y no lo hizo")
+        except ac.RespuestaMala:
+            check(nombre, True)
+
+    falla("aborta si el cuerpo no es un objeto", [])
+    falla("aborta si no hay lista 'matches'", {"resultSet": {"count": 0}})
+    falla("aborta si 'matches' no es una lista", {"matches": "vaya"})
+    falla("aborta si la respuesta viene vacía", {"matches": []})
+    falla("aborta si vienen menos partidos de los esperados",
+          {"matches": [{"id": i} for i in range(ac.MIN_PARTIDOS - 1)]})
+
+    buena = {"matches": [{"id": i} for i in range(ac.MIN_PARTIDOS)]}
+    check("acepta una respuesta con partidos de sobra",
+          len(ac.partidos_de(buena)) == ac.MIN_PARTIDOS)
+
+    # El fixture sintético tiene menos partidos que el mínimo (le bastan 8 para
+    # probar los casos), así que solo se comprueba su forma.
+    fx = json.load(open("tests/respuesta_api.json"))
+    check("el fixture sintético tiene la forma que espera el script",
+          isinstance(fx.get("matches"), list) and len(fx["matches"]) > 0)
+
+    # Si ya se ha capturado una respuesta real (tarea 10), se comprueba que trae
+    # los campos de los que depende el código. Es la prueba de que el esquema
+    # supuesto en el fixture coincide con el de verdad.
+    if os.path.exists("tests/respuesta_real.json"):
+        real = json.load(open("tests/respuesta_real.json"))
+        try:
+            ps = ac.partidos_de(real)
+            check("la respuesta real pasa la validación", True)
+        except ac.RespuestaMala as e:
+            check("la respuesta real pasa la validación", False, str(e))
+            ps = []
+        for campo in ("utcDate", "status", "homeTeam", "awayTeam", "competition"):
+            check(f"la respuesta real trae el campo {campo}",
+                  all(campo in p for p in ps), "el esquema de la API ha cambiado")
+        check("la respuesta real trae stage en los partidos de Champions",
+              all("stage" in p for p in ps
+                  if (p.get("competition") or {}).get("code") == "CL"))
+        check("el Madrid aparece como local en varios partidos",
+              sum(1 for p in ps if (p.get("homeTeam") or {}).get("id") == ac.ID_MADRID) >= 19,
+              "¿es correcto ID_MADRID?")
+
+
+def test_escritura_atomica():
+    bloque("Escritura del calendario")
+    import actualizar_calendario as ac, tempfile
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "cal.json")
+        datos = _cal_prueba()
+        ac.escribir_atomico(p, datos)
+        check("escribe un JSON que se puede volver a leer",
+              json.load(open(p, encoding="utf-8")) == datos)
+        check("no deja ficheros temporales al lado",
+              os.listdir(d) == ["cal.json"], str(os.listdir(d)))
+
+
+# ------------------------------------------------------------ partidos aplazados
+def test_aplazado_se_reporta():
+    bloque("Un partido aplazado deja rastro en el informe")
+    import actualizar_calendario as ac
+
+    # L16 está en el fixture como POSTPONED. El aviso sale en la web, así que el
+    # informe tiene que decirlo: si no, el commit diría "0 cambios" justo la noche
+    # en que la web empieza a anunciar un aplazamiento.
+    cal = _cal_prueba()
+    nuevo, cambios, _ = ac.aplicar(cal, ac.emparejar(cal, _partidos_fixture()))
+    por_id = {m["id"]: m for m in nuevo}
+
+    check("el aviso llega al calendario", "aplazado" in por_id["L16"]["aviso"])
+    check("y también al informe de cambios", any("L16" in c for c in cambios),
+          f"cambios: {cambios}")
+    linea = next((c for c in cambios if "L16" in c), "")
+    check("la línea del informe menciona el aplazamiento", "aplazado" in linea,
+          f"dice: {linea!r}")
+
+    # Y al revés: si nada cambia de estado, no se inventa una línea
+    ya_puesto = [dict(m, estado="POSTPONED", aviso="⚠️ Partido aplazado")
+                 if m["id"] == "L16" else dict(m) for m in cal]
+    _, cambios2, _ = ac.aplicar(ya_puesto, ac.emparejar(ya_puesto, _partidos_fixture()))
+    check("un aplazamiento ya conocido no se repite cada noche",
+          not any("L16" in c for c in cambios2), f"cambios: {cambios2}")
+
+
+def test_stage_desconocido():
+    bloque("Una ronda nueva de la API no falla en silencio")
+    import actualizar_calendario as ac
+    cal = _cal_prueba()
+
+    check("con las rondas de siempre no avisa de nada",
+          not ac.stages_desconocidos(cal, _partidos_fixture()))
+
+    inventada = _partidos_fixture() + [
+        {"id": 9, "utcDate": "2027-02-24T20:00:00Z", "status": "TIMED",
+         "stage": "RONDA_QUE_NO_CONOCEMOS",
+         "homeTeam": {"id": 86, "shortName": "Real Madrid"},
+         "awayTeam": {"id": 5, "shortName": "Bayern"}}]
+    avisos = ac.stages_desconocidos(cal, inventada)
+    check("avisa de una ronda que no sabe emparejar",
+          any("RONDA_QUE_NO_CONOCEMOS" in a for a in avisos), str(avisos))
+
+
+# ------------------------------------------------------- construccion de la peticion
+def test_peticion():
+    bloque("La petición a la API")
+    import actualizar_calendario as ac
+    import urllib.error
+
+    # Aquí estuvieron dos de los tres bugs que hubo que corregir antes de publicar:
+    # un /v4 duplicado que habría dado 404 todas las noches, y un código de estado
+    # equivocado. Ninguno tenía test. Ahora sí.
+    capturado = {}
+
+    class RespuestaFalsa:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return json.dumps(
+            {"matches": [{"id": i} for i in range(ac.MIN_PARTIDOS)]}).encode()
+
+    def urlopen_falso(req, timeout=None):
+        capturado["url"] = req.full_url
+        capturado["headers"] = dict(req.header_items())
+        return RespuestaFalsa()
+
+    real = ac.urllib.request.urlopen
+    try:
+        ac.urllib.request.urlopen = urlopen_falso
+        partidos = ac.pedir("un-token")
+        check("devuelve los partidos", len(partidos) == ac.MIN_PARTIDOS)
+        check("la URL no repite /v4",
+              capturado["url"].count("/v4") == 1, capturado["url"])
+        check("la URL apunta al equipo y la temporada correctos",
+              capturado["url"].endswith(f"/v4/teams/{ac.ID_MADRID}/matches"
+                                        f"?season={ac.TEMPORADA}"), capturado["url"])
+        check("manda el token en la cabecera que espera la API",
+              capturado["headers"].get("X-auth-token") == "un-token",
+              str(capturado["headers"]))
+
+        # Los códigos de error se traducen a un mensaje entendible
+        for codigo, trozo in ((400, "inválido"), (401, "inválido"),
+                              (403, "gratuito"), (429, "límite")):
+            def falla(req, timeout=None, _c=codigo):
+                raise urllib.error.HTTPError(capturado["url"], _c, "vaya", {}, None)
+            ac.urllib.request.urlopen = falla
+            try:
+                ac.pedir("x")
+                check(f"HTTP {codigo} aborta", False, "no abortó")
+            except ac.RespuestaMala as e:
+                check(f"HTTP {codigo} aborta con un mensaje claro", trozo in str(e),
+                      f"dice: {e}")
+    finally:
+        ac.urllib.request.urlopen = real
+
+
+if __name__ == "__main__":
+    test_fechas()
+    test_aviso_en_la_web()
+    test_emparejar()
+    test_aplicar()
+    test_aviso_de_jornada_movida()
+    test_aplazado_se_reporta()
+    test_stage_desconocido()
+    test_validar()
+    test_respuestas_malas()
+    test_peticion()
+    test_escritura_atomica()
+    print()
+    if FALLOS:
+        print(f"{len(FALLOS)} fallo(s): " + ", ".join(FALLOS))
+        sys.exit(1)
+    print("todo en orden")

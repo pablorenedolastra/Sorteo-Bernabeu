@@ -7,17 +7,17 @@
 <style>
 :root{color-scheme:light;
   --bg:#f4f4f1;--surface:#fcfcfb;--line:#e2e1dc;--line2:#eeede9;
-  --ink:#0b0b0b;--ink2:#52514e;--ink3:#83817a;
+  --ink:#0b0b0b;--ink2:#52514e;--ink3:#83817a;--warn:#a04510;
   --s1:#104281;--s2:#2a78d6;--s3:#86b6ef;
   --c-liga:#2a78d6;--c-champions:#eb6834;--c-copa:#1baf7a;--accent:#104281;}
 @media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){color-scheme:dark;
   --bg:#111110;--surface:#1a1a19;--line:#33332f;--line2:#262624;
-  --ink:#fff;--ink2:#c3c2b7;--ink3:#8f8e85;
+  --ink:#fff;--ink2:#c3c2b7;--ink3:#8f8e85;--warn:#f0a070;
   --s1:#184f95;--s2:#3987e5;--s3:#9ec5f4;
   --c-liga:#3987e5;--c-champions:#d95926;--c-copa:#199e70;--accent:#9ec5f4;}}
 :root[data-theme="dark"]{color-scheme:dark;
   --bg:#111110;--surface:#1a1a19;--line:#33332f;--line2:#262624;
-  --ink:#fff;--ink2:#c3c2b7;--ink3:#8f8e85;
+  --ink:#fff;--ink2:#c3c2b7;--ink3:#8f8e85;--warn:#f0a070;
   --s1:#184f95;--s2:#3987e5;--s3:#9ec5f4;
   --c-liga:#3987e5;--c-champions:#d95926;--c-copa:#199e70;--accent:#9ec5f4;}
 *{box-sizing:border-box}
@@ -89,6 +89,7 @@ tbody tr:last-child td,tbody tr:last-child th{border-bottom:0}
 .ronda{display:block;color:var(--ink3);font-size:12px;margin-top:3px}
 .c-rival{font-weight:600}
 .nota{font-weight:400;color:var(--ink3);font-size:12px;margin-top:3px;max-width:34ch}
+.nota.aviso{color:var(--warn);font-weight:600}
 .c-niv{white-space:nowrap;width:1%}
 .niv{display:inline-block;width:26px;text-align:center;padding:2px 0;border-radius:4px;font-size:11px;font-weight:700}
 .niv.n1{background:var(--s1);color:#fff} .niv.n2{background:var(--s2);color:#fff}
@@ -198,7 +199,7 @@ footer a{color:var(--ink2)}
 <tr data-comp="LIGA" data-who="Jorge" class="mtch"><td class="c-date"><span class="d">Dom 30 ago 2026</span><span class="h">17:00</span></td><td class="c-comp"><span class="badge b-liga">LaLiga</span><span class="ronda">J3</span></td><td class="c-rival">Málaga CF<div class="nota">⚠️ Solo 1 entrada disponible</div></td><td class="c-niv"><span class="niv n3">N3</span><span class="nivt">Normal</span></td><td class="c-who"><span class="who">Jorge</span><span class="who ghost">— libre —</span></td><td class="c-seats">1</td></tr>
 <tr class="mrow"><th colspan="6" scope="colgroup">Septiembre 2026</th></tr>
 <tr data-comp="CHAMPIONS" data-who="Jorge|Pablo" class="mtch"><td class="c-date"><span class="d">Mar 8 sep 2026</span><span class="h">21:00</span></td><td class="c-comp"><span class="badge b-champions">Champions</span><span class="ronda">Fase liga · J1</span></td><td class="c-rival">Inter de Milán</td><td class="c-niv"><span class="niv n2">N2</span><span class="nivt">Medio</span></td><td class="c-who"><span class="who">Jorge</span><span class="who">Pablo</span></td><td class="c-seats">2</td></tr>
-<tr data-comp="LIGA" data-who="Pablo|Víctor" class="mtch"><td class="c-date"><span class="d">12/13 sep 2026</span><span class="h">TBD</span></td><td class="c-comp"><span class="badge b-liga">LaLiga</span><span class="ronda">J5</span></td><td class="c-rival">Rayo Vallecano</td><td class="c-niv"><span class="niv n3">N3</span><span class="nivt">Normal</span></td><td class="c-who"><span class="who">Pablo</span><span class="who">Víctor</span></td><td class="c-seats">2</td></tr>
+<tr data-comp="LIGA" data-who="Pablo|Víctor" class="mtch"><td class="c-date"><span class="d">Sáb 12 sep 2026</span><span class="h">21:00</span></td><td class="c-comp"><span class="badge b-liga">LaLiga</span><span class="ronda">J5</span></td><td class="c-rival">Rayo Vallecano</td><td class="c-niv"><span class="niv n3">N3</span><span class="nivt">Normal</span></td><td class="c-who"><span class="who">Pablo</span><span class="who">Víctor</span></td><td class="c-seats">2</td></tr>
 <tr class="mrow"><th colspan="6" scope="colgroup">Octubre 2026</th></tr>
 <tr data-comp="LIGA" data-who="Víctor|Jorge" class="mtch"><td class="c-date"><span class="d">10/11 oct 2026</span><span class="h">TBD</span></td><td class="c-comp"><span class="badge b-liga">LaLiga</span><span class="ronda">J8</span></td><td class="c-rival">Villarreal CF</td><td class="c-niv"><span class="niv n2">N2</span><span class="nivt">Medio</span></td><td class="c-who"><span class="who">Víctor</span><span class="who">Jorge</span></td><td class="c-seats">2</td></tr>
 <tr data-comp="LIGA" data-who="Jorge|Alberto" class="mtch"><td class="c-date"><span class="d">17/18 oct 2026</span><span class="h">TBD</span></td><td class="c-comp"><span class="badge b-liga">LaLiga</span><span class="ronda">J9</span></td><td class="c-rival">Sevilla FC</td><td class="c-niv"><span class="niv n2">N2</span><span class="nivt">Medio</span></td><td class="c-who"><span class="who">Jorge</span><span class="who">Alberto</span></td><td class="c-seats">2</td></tr>
@@ -392,6 +393,8 @@ footer a{color:var(--ink2)}
   fechas de Champions según <a href="https://www.uefa.com/uefachampionsleague/">UEFA</a> y de Copa
   del Rey según la <a href="https://rfef.es/es/noticias/la-temporada-202627-ya-tiene-establecidas-sus-fechas-clave">RFEF</a>.
   La temporada 2025/26 procede del Excel del sorteo del año pasado.
+  Las fechas y horas se actualizan solas cada noche desde
+  <a href="https://www.football-data.org/">football-data.org</a>; las que aún no son firmes se muestran como rango.
   Documento de consulta — si hay cambios o intercambios, se anotan aparte.
 </footer>
 </div>

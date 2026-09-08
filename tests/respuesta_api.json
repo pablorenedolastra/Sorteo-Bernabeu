@@ -1,0 +1,84 @@
+{
+  "filters": {"season": "2026"},
+  "resultSet": {"count": 8},
+  "matches": [
+    {
+      "id": 500001,
+      "utcDate": "2026-08-26T19:00:00Z",
+      "status": "TIMED",
+      "matchday": 1,
+      "stage": "REGULAR_SEASON",
+      "competition": {"id": 2014, "code": "PD", "name": "Primera Division"},
+      "homeTeam": {"id": 86, "name": "Real Madrid CF", "shortName": "Real Madrid"},
+      "awayTeam": {"id": 92, "name": "Real Sociedad de Futbol", "shortName": "Real Sociedad"}
+    },
+    {
+      "id": 500002,
+      "utcDate": "2026-09-12T00:00:00Z",
+      "status": "SCHEDULED",
+      "matchday": 5,
+      "stage": "REGULAR_SEASON",
+      "competition": {"id": 2014, "code": "PD", "name": "Primera Division"},
+      "homeTeam": {"id": 86, "name": "Real Madrid CF", "shortName": "Real Madrid"},
+      "awayTeam": {"id": 87, "name": "Rayo Vallecano de Madrid", "shortName": "Rayo Vallecano"}
+    },
+    {
+      "id": 500003,
+      "utcDate": "2026-10-10T00:00:00Z",
+      "status": "SCHEDULED",
+      "matchday": 8,
+      "stage": "REGULAR_SEASON",
+      "competition": {"id": 2014, "code": "PD", "name": "Primera Division"},
+      "homeTeam": {"id": 86, "name": "Real Madrid CF", "shortName": "Real Madrid"},
+      "awayTeam": {"id": 94, "name": "Villarreal CF", "shortName": "Villarreal"}
+    },
+    {
+      "id": 500004,
+      "utcDate": "2026-12-12T20:00:00Z",
+      "status": "POSTPONED",
+      "matchday": 16,
+      "stage": "REGULAR_SEASON",
+      "competition": {"id": 2014, "code": "PD", "name": "Primera Division"},
+      "homeTeam": {"id": 86, "name": "Real Madrid CF", "shortName": "Real Madrid"},
+      "awayTeam": {"id": 79, "name": "CA Osasuna", "shortName": "Osasuna"}
+    },
+    {
+      "id": 500005,
+      "utcDate": "2026-09-08T19:00:00Z",
+      "status": "TIMED",
+      "matchday": 1,
+      "stage": "LEAGUE_STAGE",
+      "competition": {"id": 2001, "code": "CL", "name": "UEFA Champions League"},
+      "homeTeam": {"id": 108, "name": "FC Internazionale Milano", "shortName": "Inter"},
+      "awayTeam": {"id": 86, "name": "Real Madrid CF", "shortName": "Real Madrid"}
+    },
+    {
+      "id": 500006,
+      "utcDate": "2026-10-21T19:00:00Z",
+      "status": "TIMED",
+      "matchday": 3,
+      "stage": "LEAGUE_STAGE",
+      "competition": {"id": 2001, "code": "CL", "name": "UEFA Champions League"},
+      "homeTeam": {"id": 86, "name": "Real Madrid CF", "shortName": "Real Madrid"},
+      "awayTeam": {"id": 721, "name": "RB Leipzig", "shortName": "RB Leipzig"}
+    },
+    {
+      "id": 500007,
+      "utcDate": "2027-03-16T20:00:00Z",
+      "status": "TIMED",
+      "stage": "LAST_16",
+      "competition": {"id": 2001, "code": "CL", "name": "UEFA Champions League"},
+      "homeTeam": {"id": 86, "name": "Real Madrid CF", "shortName": "Real Madrid"},
+      "awayTeam": {"id": 5, "name": "FC Bayern Munchen", "shortName": "Bayern"}
+    },
+    {
+      "id": 500008,
+      "utcDate": "2027-03-09T20:00:00Z",
+      "status": "TIMED",
+      "stage": "LAST_16",
+      "competition": {"id": 2001, "code": "CL", "name": "UEFA Champions League"},
+      "homeTeam": {"id": 5, "name": "FC Bayern Munchen", "shortName": "Bayern"},
+      "awayTeam": {"id": 86, "name": "Real Madrid CF", "shortName": "Real Madrid"}
+    }
+  ]
+}
